@@ -46,14 +46,14 @@ Aplica esto en cada fase de abajo: si una tarea dice "endpoint que hace X", el e
 
 Referencia: RF-1, RF-2, RF-3, CU01, CU02, CU03
 
-- [ ] Modelo `Usuario` (con `rol_id` FK directa — **no crear tabla `usuario_rol`**, ver `CLAUDE.md`).
-- [ ] Modelos `Administrador`, `InspectorTecnico`, `OficialMando` (subtipos solapados, `usuario` como PK/FK 1:1).
-- [ ] Modelos `Rol`, `Permiso`, `RolPermiso`.
-- [ ] Endpoint de login (JWT) — RF-1.
-- [ ] Endpoints CRUD de roles y permisos — RF-2. Definir en el sistema (no en BD) qué permisos exige cada acción.
-- [ ] Middleware o mixin que registre automáticamente en `BitacoraAuditoria` cada acción crítica (crear campaña, cerrar acta, generar reporte, descargar reporte), guardando el `rol_id` **actual** del usuario al momento de la acción (snapshot histórico) — RF-3.
-- [ ] Permisos de DRF (`IsAdministrador`, `IsInspectorTecnico`, `IsOficialMando`) como clases reutilizables, basadas en pertenencia a los subtipos, no en el campo `rol`.
-- [ ] Tests: login válido/inválido, creación de usuario con su subtipo en una sola transacción, bitácora se registra correctamente.
+- [x] Modelo `Usuario` (con `rol_id` FK directa — **no crear tabla `usuario_rol`**, ver `CLAUDE.md`) — **2026-09-27**. `apps/usuarios/models.py`, `AbstractBaseUser` custom con `UsuarioManager.create_user`, `USERNAME_FIELD = "email"`.
+- [x] Modelos `Administrador`, `InspectorTecnico`, `OficialMando` (subtipos solapados, `usuario` como PK/FK 1:1) — **2026-09-27**.
+- [x] Modelos `Rol`, `Permiso`, `RolPermiso` — **2026-09-27**.
+- [x] Endpoint de login (JWT) — RF-1 — **2026-09-27**. `api/auth/token/` y `api/auth/token/refresh/` (`TokenObtainPairView`/`TokenRefreshView`, wireados en `config/urls.py`).
+- [x] Endpoints CRUD de roles y permisos — RF-2 — **2026-09-27**. `RolViewSet`/`PermisoViewSet`/`UsuarioViewSet` en `apps/usuarios/views.py`, registrados en `apps/usuarios/urls.py` (`api/usuarios/roles/`, `api/usuarios/permisos/`, `api/usuarios/usuarios/`), protegidos con `IsAdministrador`. Los permisos que exige cada acción se resuelven vía estas permission classes, no en BD.
+- [x] Middleware o mixin que registre automáticamente en `BitacoraAuditoria` cada acción crítica, guardando el `rol_id` **actual** del usuario al momento de la acción (snapshot histórico) — RF-3 — **2026-09-27**. `apps/usuarios/mixins.py` + `services.registrar_bitacora()`. Pendiente: conectarlo a las acciones críticas reales (crear campaña, cerrar acta, generar/descargar reporte) cuando esas vistas existan (Fases 3, 4, 6).
+- [x] Permisos de DRF (`IsAdministrador`, `IsInspectorTecnico`, `IsOficialMando`) como clases reutilizables, basadas en pertenencia a los subtipos, no en el campo `rol` — **2026-09-27**. `apps/usuarios/permissions.py`.
+- [x] Tests: login válido/inválido, creación de usuario con su subtipo en una sola transacción, bitácora se registra correctamente, permisos de los endpoints CRUD (`IsAdministrador` bloquea a otros subtipos, no autenticado rechazado) — **2026-09-27**. `apps/usuarios/tests/test_usuarios.py`, 9 tests, corren con `docker compose exec web python manage.py test --keepdb` (la BD de test reutiliza la misma Supabase, ver `settings.py`).
 
 ---
 

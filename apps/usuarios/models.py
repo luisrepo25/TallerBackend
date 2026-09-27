@@ -1,3 +1,4 @@
+from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 
 # Modelos mapeados 1:1 al schema de BasedeDatos.sql (managed=False: el SQL
@@ -38,13 +39,34 @@ class RolPermiso(models.Model):
         db_table = "rol_permiso"
 
 
-class Usuario(models.Model):
+class UsuarioManager(BaseUserManager):
+    """Manager minimo: solo create_user. No hay createsuperuser porque este
+    sistema no usa is_staff/is_superuser de Django (autorizacion via `rol`,
+    resuelta en Django, no en la BD ni en el sistema de permisos de contrib.auth)."""
+
+    def create_user(self, email, password, **extra_fields):
+        usuario = self.model(email=self.normalize_email(email), **extra_fields)
+        usuario.set_password(password)
+        usuario.save(using=self._db)
+        return usuario
+
+
+class Usuario(AbstractBaseUser):
     nombre_completo = models.CharField(max_length=150)
     email = models.CharField(max_length=150, unique=True)
-    password_hash = models.CharField(max_length=255)
+    password = models.CharField(max_length=255, db_column="password_hash")
     rol = models.ForeignKey(Rol, on_delete=models.PROTECT, db_column="rol_id")
     activo = models.BooleanField(default=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    # La tabla `usuarios` no tiene columna last_login; se quita el campo
+    # heredado de AbstractBaseUser en vez de agregar una columna al schema.
+    last_login = None
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
+
+    objects = UsuarioManager()
 
     class Meta:
         managed = False
@@ -52,6 +74,10 @@ class Usuario(models.Model):
 
     def __str__(self):
         return self.nombre_completo
+
+    @property
+    def is_active(self):
+        return self.activo
 
 
 class Administrador(models.Model):

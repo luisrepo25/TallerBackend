@@ -82,8 +82,15 @@ DATABASES = {
         "PASSWORD": env("DB_PASSWORD"),
         "HOST": env("DB_HOST"),
         "PORT": env("DB_PORT", default="5432"),
+        # Los modelos managed=False (BasedeDatos.sql) no tienen migraciones, asi
+        # que Django no puede crearlos en una BD de test efimera nueva. Se
+        # reutiliza la misma Supabase para tests (decision del equipo: no hay
+        # aislamiento, correr tests con cuidado sobre datos compartidos).
+        "TEST": {"NAME": env("DB_NAME")},
     }
 }
+
+AUTH_USER_MODEL = "usuarios.Usuario"
 
 
 # Password validation
