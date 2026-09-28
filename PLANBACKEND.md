@@ -61,15 +61,15 @@ Referencia: RF-1, RF-2, RF-3, CU01, CU02, CU03
 
 Referencia: RF-4, RF-5, RF-6, CU04, CU05, CU06
 
-- [ ] Modelo `CatalogoTipoPredio` (extensible, con `riesgo_activacion`).
-- [ ] Modelo `Predio` (`GeometryField(Polygon, srid=4326)`, `area_m2`, `atributos_extra` como `JSONField`).
-- [ ] Modelo `CatalogoTipoAcople`, modelo `Hidrante` (`GeometryField(Point, srid=4326)`).
-- [ ] Modelo `PredioHidranteCobertura` (N:M con atributos: `distancia_m`, `es_mas_cercano`).
-- [ ] Endpoint para registrar predio con geometría (recibir GeoJSON desde el frontend React con react-leaflet) — RF-4.
-- [ ] Endpoint para registrar hidrante — RF-5.
-- [ ] Función/servicio `calcular_cobertura_hidrantes(predio)`: usa `django.contrib.gis.db.models.functions.Distance` para calcular distancia a hidrantes activos y poblar `PredioHidranteCobertura` — RF-6.
-- [ ] Endpoint que devuelva el hidrante más cercano activo a un predio dado (usado luego por Fiscalización).
-- [ ] Tests: cálculo de distancia con datos conocidos (verificar contra el ejemplo que ya usamos: Predio 1 / Hidrante 1 ≈ 184.30 m).
+- [x] Modelo `CatalogoTipoPredio` (extensible, con `riesgo_activacion`) — **2026-09-28**. En `apps/catastro/models.py`.
+- [x] Modelo `Predio` (`GeometryField(Polygon, srid=4326)`, `area_m2`, `atributos_extra` como `JSONField`) — **2026-09-28**. En `apps/catastro/models.py`.
+- [x] Modelo `CatalogoTipoAcople`, modelo `Hidrante` (`GeometryField(Point, srid=4326)`) — **2026-09-28**. En `apps/catastro/models.py`.
+- [x] Modelo `PredioHidranteCobertura` (N:M con atributos: `distancia_m`, `es_mas_cercano`) — **2026-09-28**. En `apps/catastro/models.py`.
+- [x] Endpoint para registrar predio con geometría (recibir GeoJSON desde el frontend React con react-leaflet) — RF-4 — **2026-09-28**. `PredioViewSet` en `apps/catastro/views.py` con `GeometryJSONField` (soporta dict/string GeoJSON Polygon en SRID 4326), integrado con `BitacoraAuditoriaMixin` y validación de permisos `IsCatastroEditorOrReadOnly`.
+- [x] Endpoint para registrar hidrante — RF-5 — **2026-09-28**. `HidranteViewSet` en `apps/catastro/views.py` con `GeometryJSONField` (GeoJSON Point en SRID 4326), filtro por `estado_operativo` y registro en bitácora.
+- [x] Función/servicio `calcular_cobertura_hidrantes(predio)`: usa `django.contrib.gis.db.models.functions.Distance` para calcular distancia a hidrantes activos y poblar `PredioHidranteCobertura` — RF-6 — **2026-09-28**. `apps/catastro/services.py`, ejecución `@transaction.atomic`, calcula distancias geodésicas sobre la esfera en metros, marca `es_mas_cercano = True` al de menor distancia e ignora hidrantes fuera de servicio.
+- [x] Endpoint que devuelva el hidrante más cercano activo a un predio dado (usado luego por Fiscalización) — **2026-09-28**. Acción `@action` `api/catastro/predios/{id}/hidrante-cercano/`, retorna detalle del hidrante activo más cercano y distancia exacta en metros.
+- [x] Tests: cálculo de distancia con datos conocidos, filtrado de hidrantes inactivos, validación GeoJSON, endpoints y control de permisos — **2026-09-28**. `apps/catastro/tests/test_catastro.py`, 12 tests ejecutados y pasando al 100% en Docker contra Supabase.
 
 ---
 
