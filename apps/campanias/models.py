@@ -24,9 +24,7 @@ class Campania(models.Model):
     fecha_fin = models.DateField()
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default=ESTADO_PENDIENTE)
     geom = models.PolygonField(srid=4326, null=True, blank=True)
-    creado_por = models.ForeignKey(
-        Administrador, on_delete=models.PROTECT, db_column="creado_por"
-    )
+    creado_por = models.ForeignKey(Administrador, on_delete=models.PROTECT, db_column="creado_por")
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -40,9 +38,7 @@ class Campania(models.Model):
 class CampaniaFuncionario(models.Model):
     pk = models.CompositePrimaryKey("campania", "usuario")
     campania = models.ForeignKey(Campania, on_delete=models.CASCADE, db_column="campania_id")
-    usuario = models.ForeignKey(
-        InspectorTecnico, on_delete=models.PROTECT, db_column="usuario_id"
-    )
+    usuario = models.ForeignKey(InspectorTecnico, on_delete=models.PROTECT, db_column="usuario_id")
     fecha_asignacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:

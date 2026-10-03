@@ -77,14 +77,18 @@ Referencia: RF-4, RF-5, RF-6, CU04, CU05, CU06
 
 Referencia: RF-7 a RF-11, CU07 a CU11
 
-- [ ] Modelo `Campania` (`GeometryField(Polygon)`, `creado_por` FK a `Administrador`).
-- [ ] Modelo `CampaniaFuncionarios` (N:M con atributo `fecha_asignacion`, `usuario` FK a `InspectorTecnico`).
-- [ ] Endpoint crear campaña (solo Administrador) — RF-7.
-- [ ] Endpoint para delimitar/actualizar el polígono de zona — RF-8.
-- [ ] Endpoint asignar/quitar inspectores a una campaña — RF-9.
-- [ ] Endpoint consultar avance: `% = actas cerradas / predios dentro del polígono (ST_Intersects)` — RF-10. **No crear una tabla Predio-Campania directa**, resolver siempre por intersección espacial (ver `CLAUDE.md`, evita relación triángulo).
-- [ ] Endpoint cerrar campaña (validar que no queden inspecciones pendientes) — RF-11.
-- [ ] Tests: intersección espacial correcta, solo un Administrador puede crear campañas, solo Inspectores pueden ser asignados.
+- [x] Modelo `Campania` (`GeometryField(Polygon)`, `creado_por` FK a `Administrador`) — **2026-10-03**. Ya existía desde la Fase 0 (`apps/campanias/models.py`); sin cambios.
+- [x] Modelo `CampaniaFuncionarios` (N:M con atributo `fecha_asignacion`, `usuario` FK a `InspectorTecnico`) — **2026-10-03**. Ya existía desde la Fase 0 (`CampaniaFuncionario`, `CompositePrimaryKey`).
+- [x] Endpoint crear campaña (solo Administrador) — RF-7 — **2026-10-03**. `POST api/campanias/campanias/`. Nace `pendiente`; `creado_por` sale del usuario autenticado y `estado` es de solo lectura. Lectura: Administrador y Oficial ven todas, el Inspector solo las suyas. No existe DELETE: una campaña se cierra, no se borra.
+- [x] Endpoint para delimitar/actualizar el polígono de zona — RF-8 — **2026-10-03**. `PUT api/campanias/campanias/{id}/zona/` (también se acepta `geom` en PATCH). Valida Polygon, SRID 4326 y geometría válida; no se edita una campaña cerrada (409).
+- [x] Endpoint asignar/quitar inspectores a una campaña — RF-9 — **2026-10-03**. `GET {id}/inspectores/`, `POST {id}/asignar-inspectores/` (idempotente, body `{"usuarios_ids": [...]}`) y `DELETE {id}/inspectores/{usuario_id}/`. La primera asignación pasa la campaña de `pendiente` a `en_curso`. No se quita a un inspector que ya registró actas (409).
+- [x] Endpoint consultar avance: `% = actas cerradas / predios dentro del polígono (ST_Intersects)` — RF-10 — **2026-10-03**. `GET {id}/avance/` (Administrador y Oficial). Sin tabla Predio-Campania: `services.predios_en_zona()` es la única definición. Un predio en el borde de dos zonas cuenta en ambas. Sin polígono o sin predios, el porcentaje es 0.
+- [x] Endpoint cerrar campaña (validar que no queden inspecciones pendientes) — RF-11 — **2026-10-03**. `POST {id}/cerrar/`. Responde 409 con `predios_pendientes` y `actas_abiertas` si quedan inspecciones pendientes; el Administrador puede enviar `{"forzar": true}` (queda en bitácora como "Cerrar campania (forzado)").
+- [x] Cierre automático por vencimiento — **2026-10-03**. `python manage.py cerrar_campanias_vencidas` cierra toda campaña no cerrada con `fecha_fin` anterior a hoy (equivale a cierre forzado; no registra bitácora porque no hay usuario). **Pendiente:** programarlo diariamente en el hosting (cron/scheduler) en la Fase 8.
+- [x] Tests — **2026-10-03**. `apps/campanias/tests/test_campanias.py`, 42 tests: intersección espacial, avance, asignación, cierre normal/forzado/automático y permisos.
+- [x] `GeometryJSONField` movido a `apps/common/fields.py` (lo comparten catastro y campañas) — **2026-10-03**.
+
+**Nota para Roly (Fase 4):** al registrar un acta hay que rechazar campañas `cerrada` (el modelo no lo impide) y validar que el inspector esté asignado a la campaña (`campania_funcionarios`). El cierre forzado puede dejar actas abiertas.
 
 ---
 
