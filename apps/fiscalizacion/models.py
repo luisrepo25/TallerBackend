@@ -76,9 +76,7 @@ class ActaInspeccion(models.Model):
         max_digits=8, decimal_places=2, null=True, blank=True
     )
     scoring_riesgo = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
-    cluster_riesgo = models.CharField(
-        max_length=20, choices=CLUSTER_CHOICES, null=True, blank=True
-    )
+    cluster_riesgo = models.CharField(max_length=20, choices=CLUSTER_CHOICES, null=True, blank=True)
     cerrada = models.BooleanField(default=False)
     fecha_cierre = models.DateTimeField(null=True, blank=True)
     sincronizada = models.BooleanField(default=True)
