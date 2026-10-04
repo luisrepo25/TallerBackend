@@ -104,11 +104,19 @@ Este es el módulo más grande — es el corazón del sistema.
 - [ ] Modelo `EvidenciaFotografica`, modelo `Infraccion`.
 - [ ] Endpoint registrar acta (predio + campaña + inspector) — RF-12.
 - [ ] Endpoint subir evidencia fotográfica (guardar en storage — definir con Luis si es S3, Supabase Storage, o filesystem) — RF-13.
-- [ ] Endpoint registrar materiales combustibles de una acta — RF-22.
+- [ ] Endpoint registrar materiales combustibles de una acta — RF-22. El inspector solo ingresa tipo de material y peso (kg) desde el móvil; **nadie ingresa la carga de fuego a mano**. Desde la web, Administrador y Oficial de Mando solo **consultan** los materiales y la carga de fuego ya calculada (lectura, sin registro manual en la web).
 - [ ] **`fiscalizacion/services.py`** (capa de negocio): función `calcular_carga_fuego(acta)` (ya definida en la conversación previa, usar tal cual con `aggregate`/`F()`, no traer filas a Python) — RF-23.
 - [ ] En el mismo `services.py`: función `calcular_scoring_riesgo(acta)`, combina carga de fuego + estado extintores + fallas eléctricas + rutas de evacuación + distancia a hidrante en un puntaje — RF-14. **Definir la fórmula/pesos exactos con el resto del equipo antes de implementar** (ver `CLAUDE.md` — no inventar coeficientes).
+  - **Propuesta de Luis (2026-10-03) — PENDIENTE DE APROBACIÓN, no implementar todavía.** Puntaje de 0 a 100: `scoring = 100 × Σ (peso × valor normalizado)`, con cada variable normalizada de 0 (sin riesgo) a 1 (riesgo máximo):
+    - Carga de fuego: `min(Q ÷ Q_máx, 1)` — peso 0,30.
+    - Estado de extintores: Vigente 0 · Vencido 0,5 · No posee 1 — peso 0,20.
+    - Fallas eléctricas: No 0 · Sí 1 — peso 0,20.
+    - Rutas de evacuación: Despejadas 0 · Obstruidas 1 — peso 0,20.
+    - Distancia al hidrante: `min(d ÷ d_máx, 1)`; sin hidrantes activos = 1 — peso 0,10.
+  - **Preguntas abiertas:** (1) ¿los pesos son los correctos? 0,30 / 0,20 / 0,10 son un punto de partida, no un criterio técnico; validarlos con la UUBR o el asesor. (2) ¿Valores de `Q_máx` y `d_máx`? No inventarlos: confirmar contra la NB 58005 y la UUBR. (3) ¿Entra `peso_severidad` de `catalogo_infracciones` en el puntaje, o solo las 5 variables?
+  - Al aprobarse: pesos y topes en un solo lugar de configuración (no repartidos por el código), función en `fiscalizacion/services.py`, y un test con un caso calculado a mano.
 - [ ] Endpoint (capa de presentación) cerrar acta: **solo llama** a `services.cerrar_acta(acta)`, que internamente encadena `calcular_carga_fuego` → `calcular_scoring_riesgo` → guarda ambos. La vista no calcula nada por sí misma.
-- [ ] Endpoint consultar historial de inspecciones por predio/zona — RF-15.
+- [ ] Endpoint consultar historial de inspecciones por predio/zona — RF-15. El detalle de cada acta debe incluir los materiales registrados y la carga de fuego calculada (lectura para Administrador y Oficial de Mando en la web).
 - [ ] Lógica de detección de reincidencia: al registrar una infracción, verificar si ya existe una infracción del mismo `tipo_infraccion` en actas anteriores del mismo predio — RF-16.
 - [ ] Tests: cálculo de carga de fuego contra el ejemplo ya verificado (300kg madera + 150kg plástico, mercado 200m² → 83.61 MJ/m²), detección de reincidencia, entidades débiles se borran en cascada al borrar el acta.
 
