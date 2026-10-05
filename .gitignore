@@ -19,3 +19,6 @@ staticfiles/
 .coverage
 htmlcov/
 *.log
+*.drawio
+*.xml
+build_all_ea_xml.py
