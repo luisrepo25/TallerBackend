@@ -2,7 +2,7 @@
 -- Sistema de Informacion Geografica Web para la Evaluacion y
 -- Zonificacion del Riesgo de Incendios
 -- Script de creacion de base de datos - PostgreSQL + PostGIS
--- Version 8 (definitiva y completa)
+-- Version 8 (definitiva y completa) + parche v9 (solicitudes_material)
 --
 -- Incluye todas las correcciones acordadas:
 -- - Un usuario tiene UN SOLO rol (rol_id directo, sin usuario_rol)
@@ -14,6 +14,7 @@
 -- - Bitacora de auditoria con snapshot del rol al momento de la accion
 -- - Calculo de carga de fuego (NB 58005) basado en catalogo de materiales,
 --   calculado en el sistema (Django), la BD solo almacena los datos
+-- - Solicitud de materiales nuevos por el Inspector, aprobados por el Administrador
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS postgis;
@@ -223,6 +224,32 @@ CREATE TABLE materiales_registrados (
 );
 
 CREATE INDEX idx_materiales_acta ON materiales_registrados (acta_id);
+
+-- Solicitud de un material combustible que no esta en el catalogo. El Inspector no
+-- crea materiales (Hi y Ci son datos tabulados de la NB 58005): los solicita y el
+-- Administrador los aprueba (creando el material con sus Hi y Ci) o los rechaza.
+-- Mientras esta pendiente NO cuenta en la carga de fuego. (Parche v9)
+CREATE TABLE solicitudes_material (
+    id                SERIAL PRIMARY KEY,
+    uuid_local        UUID UNIQUE,                 -- idempotencia: el celular puede reenviar
+    nombre            VARCHAR(100) NOT NULL,
+    descripcion       TEXT,
+    peso_kg_estimado  NUMERIC(8,2) CHECK (peso_kg_estimado >= 0),
+    solicitante_id    INTEGER NOT NULL REFERENCES inspectores_tecnicos(usuario_id),
+    estado            VARCHAR(20) NOT NULL DEFAULT 'pendiente'
+                        CHECK (estado IN ('pendiente', 'aprobada', 'rechazada')),
+    material_id       INTEGER REFERENCES catalogo_materiales_combustibles(id),  -- si fue aprobada
+    resuelta_por      INTEGER REFERENCES administradores(usuario_id),
+    motivo_rechazo    TEXT,
+    fecha_solicitud   TIMESTAMP NOT NULL DEFAULT NOW(),
+    fecha_resolucion  TIMESTAMP
+);
+
+CREATE INDEX idx_solicitudes_material_estado ON solicitudes_material (estado);
+CREATE INDEX idx_solicitudes_material_solicitante ON solicitudes_material (solicitante_id);
+
+-- RLS activado como en el resto de tablas: el unico acceso legitimo es Django
+ALTER TABLE solicitudes_material ENABLE ROW LEVEL SECURITY;
 
 -- Entidades debiles: dependencia en existencia de ActaInspeccion
 CREATE TABLE evidencias_fotograficas (
