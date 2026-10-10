@@ -61,6 +61,9 @@ class MaterialItemInputSerializer(serializers.Serializer):
 
 
 class SolicitudMaterialSerializer(serializers.ModelSerializer):
+    # Explicito para evitar el validador de unicidad del modelo: reenviar el mismo uuid_local
+    # es un reintento legitimo del celular y el servicio devuelve la solicitud existente
+    uuid_local = serializers.UUIDField(required=False, allow_null=True)
     solicitante_nombre = serializers.CharField(
         source="solicitante.usuario.nombre_completo", read_only=True
     )
