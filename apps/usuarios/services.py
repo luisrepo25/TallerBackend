@@ -28,6 +28,23 @@ def crear_usuario(*, nombre_completo, email, password, rol, subtipo, datos_subti
     return usuario
 
 
+# Nombre de la relacion inversa 1:1 de cada subtipo en Usuario
+_RELACION_SUBTIPO = {
+    "administrador": "administrador",
+    "inspector_tecnico": "inspectortecnico",
+    "oficial_mando": "oficialmando",
+}
+
+
+def obtener_subtipos(usuario):
+    """Claves de SUBTIPOS_MODELOS a las que pertenece el usuario (pueden ser varias).
+
+    Usa la relacion inversa 1:1: si el usuario se cargo con select_related (como hace la
+    autenticacion JWT) no genera consultas; si no, hace una por subtipo.
+    """
+    return [clave for clave, relacion in _RELACION_SUBTIPO.items() if hasattr(usuario, relacion)]
+
+
 def registrar_bitacora(*, usuario, accion, entidad_afectada=None):
     """Registra una accion critica en BitacoraAuditoria con el snapshot del rol
     ACTUAL del usuario al momento de la accion (no se actualiza retroactivamente

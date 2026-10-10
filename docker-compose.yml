@@ -1,7 +1,10 @@
 services:
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    # --nothreading: un solo hilo para que la conexion a Supabase (DB_CONN_MAX_AGE) se
+    # reutilice entre peticiones. Las peticiones se atienden una tras otra, pero cada una
+    # tarda milisegundos en vez de ~1.8 s. Solo para desarrollo.
+    command: python manage.py runserver 0.0.0.0:8000 --nothreading
     volumes:
       - .:/app
     ports:

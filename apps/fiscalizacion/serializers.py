@@ -14,6 +14,7 @@ from .models import (
     EvidenciaFotografica,
     Infraccion,
     MaterialRegistrado,
+    SolicitudMaterial,
 )
 from .services import (
     FiscalizacionConflicto,
@@ -57,6 +58,58 @@ class MaterialRegistradoSerializer(serializers.ModelSerializer):
 class MaterialItemInputSerializer(serializers.Serializer):
     material_id = serializers.IntegerField()
     peso_kg = serializers.DecimalField(max_digits=8, decimal_places=2, min_value=Decimal("0.00"))
+
+
+class SolicitudMaterialSerializer(serializers.ModelSerializer):
+    solicitante_nombre = serializers.CharField(
+        source="solicitante.usuario.nombre_completo", read_only=True
+    )
+
+    class Meta:
+        model = SolicitudMaterial
+        fields = [
+            "id",
+            "uuid_local",
+            "nombre",
+            "descripcion",
+            "peso_kg_estimado",
+            "solicitante_nombre",
+            "estado",
+            "material",
+            "motivo_rechazo",
+            "fecha_solicitud",
+            "fecha_resolucion",
+        ]
+        read_only_fields = [
+            "id",
+            "solicitante_nombre",
+            "estado",
+            "material",
+            "motivo_rechazo",
+            "fecha_solicitud",
+            "fecha_resolucion",
+        ]
+
+
+class AprobarSolicitudMaterialSerializer(serializers.Serializer):
+    poder_calorifico_mj_kg = serializers.DecimalField(
+        max_digits=6, decimal_places=2, min_value=Decimal("0.01")
+    )
+    coeficiente_peligrosidad = serializers.DecimalField(
+        max_digits=4, decimal_places=2, min_value=Decimal("0.01")
+    )
+
+
+class RechazarSolicitudMaterialSerializer(serializers.Serializer):
+    motivo = serializers.CharField()
+
+
+class ImagenEvidenciaInputSerializer(serializers.Serializer):
+    imagen = serializers.FileField()  # el tipo y el tamano se validan en services.py
+
+
+class ImagenEvidenciaSerializer(serializers.Serializer):
+    url_imagen = serializers.CharField()
 
 
 class EvidenciaFotograficaSerializer(serializers.ModelSerializer):

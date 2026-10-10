@@ -1,38 +1,53 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import status, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
+from rest_framework.parsers import MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.usuarios.mixins import BitacoraAuditoriaMixin
+from apps.usuarios.permissions import IsAdministrador, IsInspectorTecnico
 
 from .models import (
     ActaInspeccion,
     CatalogoEstadoExtintor,
     CatalogoInfraccion,
     CatalogoMaterialCombustible,
+    SolicitudMaterial,
 )
 from .permissions import IsAdministradorOrReadOnly, IsInspectorTecnicoOrReadOnly
 from .serializers import (
     ActaInspeccionCreateSerializer,
     ActaInspeccionDetailSerializer,
     ActaInspeccionListSerializer,
+    AprobarSolicitudMaterialSerializer,
     CatalogoEstadoExtintorSerializer,
     CatalogoInfraccionSerializer,
     CatalogoMaterialCombustibleSerializer,
     EvidenciaFotograficaSerializer,
+    ImagenEvidenciaInputSerializer,
+    ImagenEvidenciaSerializer,
     InfraccionCreateSerializer,
     InfraccionSerializer,
     MaterialItemInputSerializer,
     MaterialRegistradoSerializer,
+    RechazarSolicitudMaterialSerializer,
+    SolicitudMaterialSerializer,
 )
 from .services import (
     FiscalizacionConflicto,
     FiscalizacionError,
+    aprobar_solicitud_material,
     cerrar_acta,
     consultar_historial,
+    rechazar_solicitud_material,
     registrar_infraccion,
     registrar_materiales,
+    solicitar_material,
     subir_evidencia,
+    subir_imagen_evidencia,
 )
 
 
@@ -52,6 +67,118 @@ class CatalogoMaterialCombustibleViewSet(viewsets.ModelViewSet):
     queryset = CatalogoMaterialCombustible.objects.all().order_by("id")
     serializer_class = CatalogoMaterialCombustibleSerializer
     permission_classes = [IsAdministradorOrReadOnly]
+
+
+class SolicitudMaterialViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Solicitudes de material combustible nuevo. El Inspector crea y ve las suyas; el
+    Administrador ve todas y las aprueba (dando Hi y Ci) o rechaza."""
+
+    serializer_class = SolicitudMaterialSerializer
+
+    def get_permissions(self):
+        if self.action in ("aprobar", "rechazar"):
+            return [IsAdministrador()]
+        if self.action == "create":
+            return [IsInspectorTecnico()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = SolicitudMaterial.objects.select_related("solicitante__usuario").order_by(
+            "-fecha_solicitud"
+        )
+        estado = self.request.query_params.get("estado")
+        if estado:
+            qs = qs.filter(estado=estado)
+        user = self.request.user
+        if hasattr(user, "inspectortecnico") and not hasattr(user, "administrador"):
+            qs = qs.filter(solicitante_id=user.pk)
+        return qs
+
+    def handle_exception(self, exc):
+        if isinstance(exc, SolicitudMaterial.DoesNotExist):
+            exc = NotFound()
+        if isinstance(exc, FiscalizacionError):
+            codigo = (
+                status.HTTP_409_CONFLICT
+                if isinstance(exc, FiscalizacionConflicto)
+                else status.HTTP_400_BAD_REQUEST
+            )
+            return self.finalize_response(
+                self.request,
+                Response({"detail": exc.mensaje}, status=codigo),
+                *self.args,
+                **self.kwargs,
+            )
+        return super().handle_exception(exc)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
+        solicitud = solicitar_material(
+            inspector=request.user.inspectortecnico,
+            nombre=datos["nombre"],
+            descripcion=datos.get("descripcion", ""),
+            peso_kg_estimado=datos.get("peso_kg_estimado"),
+            uuid_local=datos.get("uuid_local"),
+        )
+        return Response(self.get_serializer(solicitud).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        request=AprobarSolicitudMaterialSerializer, responses={200: SolicitudMaterialSerializer}
+    )
+    @action(detail=True, methods=["post"], url_path="aprobar")
+    def aprobar(self, request, pk=None):
+        entrada = AprobarSolicitudMaterialSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        solicitud = aprobar_solicitud_material(
+            self.get_object().pk,
+            administrador=request.user.administrador,
+            usuario=request.user,
+            **entrada.validated_data,
+        )
+        return Response(self.get_serializer(solicitud).data)
+
+    @extend_schema(
+        request=RechazarSolicitudMaterialSerializer, responses={200: SolicitudMaterialSerializer}
+    )
+    @action(detail=True, methods=["post"], url_path="rechazar")
+    def rechazar(self, request, pk=None):
+        entrada = RechazarSolicitudMaterialSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        solicitud = rechazar_solicitud_material(
+            self.get_object().pk,
+            administrador=request.user.administrador,
+            usuario=request.user,
+            motivo=entrada.validated_data["motivo"],
+        )
+        return Response(self.get_serializer(solicitud).data)
+
+
+class SubirImagenEvidenciaView(APIView):
+    """RF-13. Sube UNA foto a Cloudinary y devuelve su URL. No depende de un acta: la app
+    sube las fotos y luego las envia por URL dentro del acta al sincronizar."""
+
+    permission_classes = [IsInspectorTecnico]
+    parser_classes = [MultiPartParser]
+
+    @extend_schema(
+        request={"multipart/form-data": ImagenEvidenciaInputSerializer},
+        responses={201: ImagenEvidenciaSerializer},
+    )
+    def post(self, request):
+        entrada = ImagenEvidenciaInputSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        try:
+            url = subir_imagen_evidencia(entrada.validated_data["imagen"])
+        except FiscalizacionError as exc:
+            return Response({"detail": exc.mensaje}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"url_imagen": url}, status=status.HTTP_201_CREATED)
 
 
 class ActaInspeccionViewSet(BitacoraAuditoriaMixin, viewsets.ModelViewSet):

@@ -1,6 +1,8 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 
+from apps.common.model_fields import UtcDateTimeField
+
 # Modelos mapeados 1:1 al schema de BasedeDatos.sql (managed=False: el SQL
 # es la fuente de verdad del esquema, no las migraciones de Django).
 # Sin logica de negocio aqui: eso vive en services.py.
@@ -57,7 +59,7 @@ class Usuario(AbstractBaseUser):
     password = models.CharField(max_length=255, db_column="password_hash")
     rol = models.ForeignKey(Rol, on_delete=models.PROTECT, db_column="rol_id")
     activo = models.BooleanField(default=True)
-    fecha_registro = models.DateTimeField(auto_now_add=True)
+    fecha_registro = UtcDateTimeField(auto_now_add=True)
 
     # La tabla `usuarios` no tiene columna last_login; se quita el campo
     # heredado de AbstractBaseUser en vez de agregar una columna al schema.
@@ -121,7 +123,7 @@ class BitacoraAuditoria(models.Model):
     )
     accion = models.CharField(max_length=150)
     entidad_afectada = models.CharField(max_length=100, null=True, blank=True)
-    fecha = models.DateTimeField(auto_now_add=True)
+    fecha = UtcDateTimeField(auto_now_add=True)
 
     class Meta:
         managed = False

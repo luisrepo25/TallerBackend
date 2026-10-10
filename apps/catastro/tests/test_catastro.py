@@ -131,10 +131,9 @@ class CoberturaHidrantesServiceTests(BaseCatastroTestCase):
         self.assertTrue(cobertura.es_mas_cercano)
 
     def test_predio_sin_hidrantes_activos_retorna_vacio(self):
-        # Desactivar todos los hidrantes
-        Hidrante.objects.filter(id__in=[self.h_cercano.id, self.h_lejano.id]).update(
-            estado_operativo=Hidrante.ESTADO_FUERA_DE_SERVICIO
-        )
+        # Desactivar TODOS los hidrantes, incluidos los reales de la BD compartida
+        # (el TestCase corre en una transaccion que se revierte al terminar).
+        Hidrante.objects.update(estado_operativo=Hidrante.ESTADO_FUERA_DE_SERVICIO)
         coberturas = calcular_cobertura_hidrantes(self.predio)
         self.assertEqual(len(coberturas), 0)
 
@@ -302,3 +301,41 @@ class HidranteAPITests(BaseCatastroTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         for h in response.data:
             self.assertEqual(h["estado_operativo"], "activo")
+
+
+class EliminarProtegidoAPITests(BaseCatastroTestCase):
+    def test_eliminar_tipo_predio_en_uso_responde_409_no_500(self):
+        crear_predio(
+            nombre=f"Predio en uso {self.suffix}",
+            tipo_predio=self.tipo_predio,
+            geom=Polygon(
+                ((-63.18, -17.78), (-63.18, -17.779), (-63.179, -17.779), (-63.18, -17.78)),
+                srid=4326,
+            ),
+            registrado_por=self.admin,
+        )
+        self.client.force_authenticate(user=self.admin)
+
+        response = self.client.delete(
+            reverse("catastro:tipo-predio-detail", args=[self.tipo_predio.id])
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn("Predio", response.data["dependientes"])
+        self.assertTrue(CatalogoTipoPredio.objects.filter(pk=self.tipo_predio.id).exists())
+
+    def test_eliminar_predio_sin_dependencias_responde_204(self):
+        predio = crear_predio(
+            nombre=f"Predio libre {self.suffix}",
+            tipo_predio=self.tipo_predio,
+            geom=Polygon(
+                ((-63.18, -17.78), (-63.18, -17.779), (-63.179, -17.779), (-63.18, -17.78)),
+                srid=4326,
+            ),
+            registrado_por=self.admin,
+        )
+        self.client.force_authenticate(user=self.admin)
+
+        response = self.client.delete(reverse("catastro:predio-detail", args=[predio.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)

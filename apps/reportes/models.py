@@ -1,5 +1,6 @@
 from django.db import models
 
+from apps.common.model_fields import UtcDateTimeField
 from apps.usuarios.models import Usuario
 
 # Modelos mapeados 1:1 al schema de BasedeDatos.sql (managed=False).
@@ -26,7 +27,7 @@ class ReporteGenerado(models.Model):
     generado_por = models.ForeignKey(
         Usuario, on_delete=models.PROTECT, db_column="generado_por"
     )
-    fecha_generacion = models.DateTimeField(auto_now_add=True)
+    fecha_generacion = UtcDateTimeField(auto_now_add=True)
     parametros = models.JSONField(null=True, blank=True)
 
     class Meta:

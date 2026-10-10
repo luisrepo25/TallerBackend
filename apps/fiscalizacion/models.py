@@ -4,7 +4,8 @@ from django.db import models
 
 from apps.campanias.models import Campania
 from apps.catastro.models import Predio
-from apps.usuarios.models import InspectorTecnico
+from apps.common.model_fields import UtcDateTimeField
+from apps.usuarios.models import Administrador, InspectorTecnico
 
 # Modelos mapeados 1:1 al schema de BasedeDatos.sql (managed=False).
 # Sin logica de negocio aqui: eso vive en services.py. En particular,
@@ -65,7 +66,7 @@ class ActaInspeccion(models.Model):
     inspector = models.ForeignKey(
         InspectorTecnico, on_delete=models.PROTECT, db_column="inspector_id"
     )
-    fecha_inspeccion = models.DateTimeField(auto_now_add=True)
+    fecha_inspeccion = UtcDateTimeField(auto_now_add=True)
     carga_fuego = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     estado_extintores = models.ForeignKey(
         CatalogoEstadoExtintor, on_delete=models.PROTECT, db_column="estado_extintores_id"
@@ -78,9 +79,9 @@ class ActaInspeccion(models.Model):
     scoring_riesgo = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     cluster_riesgo = models.CharField(max_length=20, choices=CLUSTER_CHOICES, null=True, blank=True)
     cerrada = models.BooleanField(default=False)
-    fecha_cierre = models.DateTimeField(null=True, blank=True)
+    fecha_cierre = UtcDateTimeField(null=True, blank=True)
     sincronizada = models.BooleanField(default=True)
-    fecha_sincronizacion = models.DateTimeField(null=True, blank=True)
+    fecha_sincronizacion = UtcDateTimeField(null=True, blank=True)
 
     class Meta:
         managed = False
@@ -102,11 +103,53 @@ class MaterialRegistrado(models.Model):
         db_table = "materiales_registrados"
 
 
+class SolicitudMaterial(models.Model):
+    """Pedido de un Inspector para dar de alta un material combustible que no esta en el
+    catalogo. El Administrador la aprueba (creando el material con sus Hi y Ci) o la rechaza."""
+
+    ESTADO_PENDIENTE = "pendiente"
+    ESTADO_APROBADA = "aprobada"
+    ESTADO_RECHAZADA = "rechazada"
+
+    uuid_local = models.UUIDField(unique=True, null=True, blank=True)
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(null=True, blank=True)
+    peso_kg_estimado = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    solicitante = models.ForeignKey(
+        InspectorTecnico, on_delete=models.PROTECT, db_column="solicitante_id"
+    )
+    estado = models.CharField(max_length=20, default=ESTADO_PENDIENTE)
+    material = models.ForeignKey(
+        CatalogoMaterialCombustible,
+        on_delete=models.PROTECT,
+        db_column="material_id",
+        null=True,
+        blank=True,
+    )
+    resuelta_por = models.ForeignKey(
+        Administrador,
+        on_delete=models.PROTECT,
+        db_column="resuelta_por",
+        null=True,
+        blank=True,
+    )
+    motivo_rechazo = models.TextField(null=True, blank=True)
+    fecha_solicitud = UtcDateTimeField(auto_now_add=True)
+    fecha_resolucion = UtcDateTimeField(null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = "solicitudes_material"
+
+    def __str__(self):
+        return f"{self.nombre} ({self.estado})"
+
+
 class EvidenciaFotografica(models.Model):
     acta = models.ForeignKey(ActaInspeccion, on_delete=models.CASCADE, db_column="acta_id")
     url_imagen = models.CharField(max_length=255)
     descripcion_infraccion = models.TextField(null=True, blank=True)
-    fecha_captura = models.DateTimeField(auto_now_add=True)
+    fecha_captura = UtcDateTimeField(auto_now_add=True)
 
     class Meta:
         managed = False
@@ -120,7 +163,7 @@ class Infraccion(models.Model):
     )
     descripcion = models.TextField(null=True, blank=True)
     es_reincidencia = models.BooleanField(default=False)
-    fecha_registro = models.DateTimeField(auto_now_add=True)
+    fecha_registro = UtcDateTimeField(auto_now_add=True)
 
     class Meta:
         managed = False

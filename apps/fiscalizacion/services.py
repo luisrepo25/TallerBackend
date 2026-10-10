@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from apps.campanias.models import Campania, CampaniaFuncionario
 from apps.catastro.services import obtener_hidrante_mas_cercano
+from apps.common import cloudinary_storage
 from apps.usuarios.services import registrar_bitacora
 
 from .models import (
@@ -15,6 +16,7 @@ from .models import (
     EvidenciaFotografica,
     Infraccion,
     MaterialRegistrado,
+    SolicitudMaterial,
 )
 
 logger = logging.getLogger(__name__)
@@ -296,6 +298,117 @@ def subir_evidencia(
         )
 
     return evidencia
+
+
+TIPOS_IMAGEN_PERMITIDOS = {"image/jpeg", "image/png", "image/webp"}
+TAMANO_MAX_IMAGEN = 10 * 1024 * 1024  # 10 MB
+
+
+def subir_imagen_evidencia(archivo) -> str:
+    """RF-13. Valida la foto y la guarda en Cloudinary. Devuelve su URL.
+
+    No toca ningun acta: la app movil sube las fotos antes de sincronizar el acta (que en
+    campo puede no existir todavia en el servidor) y luego envia las URLs dentro del acta."""
+    if archivo is None:
+        raise FiscalizacionError("Falta la imagen (campo 'imagen').")
+    if archivo.content_type not in TIPOS_IMAGEN_PERMITIDOS:
+        raise FiscalizacionError("La evidencia debe ser una imagen JPG, PNG o WEBP.")
+    if archivo.size > TAMANO_MAX_IMAGEN:
+        raise FiscalizacionError("La imagen supera el maximo de 10 MB.")
+    try:
+        return cloudinary_storage.subir_imagen(
+            archivo.read(), archivo.name or "evidencia.jpg", archivo.content_type
+        )
+    except cloudinary_storage.CloudinaryError as exc:
+        raise FiscalizacionError(str(exc)) from exc
+
+
+@transaction.atomic
+def solicitar_material(
+    *, inspector, nombre, descripcion="", peso_kg_estimado=None, uuid_local=None
+) -> SolicitudMaterial:
+    """El Inspector pide dar de alta un material combustible que no esta en el catalogo.
+    Idempotente por `uuid_local` (el celular puede reenviar la misma solicitud)."""
+    nombre = (nombre or "").strip()
+    if not nombre:
+        raise FiscalizacionError("El nombre del material es obligatorio.")
+
+    if uuid_local is not None:
+        existente = SolicitudMaterial.objects.filter(uuid_local=uuid_local).first()
+        if existente is not None:
+            if existente.solicitante_id != inspector.pk:
+                raise FiscalizacionError("Ese identificador ya fue usado por otro inspector.")
+            return existente
+
+    if CatalogoMaterialCombustible.objects.filter(nombre__iexact=nombre).exists():
+        raise FiscalizacionConflicto(f"'{nombre}' ya existe en el catalogo de materiales.")
+    if SolicitudMaterial.objects.filter(
+        nombre__iexact=nombre, estado=SolicitudMaterial.ESTADO_PENDIENTE
+    ).exists():
+        raise FiscalizacionConflicto(f"Ya hay una solicitud pendiente para '{nombre}'.")
+
+    return SolicitudMaterial.objects.create(
+        uuid_local=uuid_local,
+        nombre=nombre,
+        descripcion=(descripcion or "").strip() or None,
+        peso_kg_estimado=peso_kg_estimado,
+        solicitante=inspector,
+    )
+
+
+def _solicitud_pendiente(solicitud_id):
+    solicitud = SolicitudMaterial.objects.select_for_update().get(pk=solicitud_id)
+    if solicitud.estado != SolicitudMaterial.ESTADO_PENDIENTE:
+        raise FiscalizacionConflicto(f"La solicitud ya fue {solicitud.estado}.")
+    return solicitud
+
+
+@transaction.atomic
+def aprobar_solicitud_material(
+    solicitud_id, *, administrador, poder_calorifico_mj_kg, coeficiente_peligrosidad, usuario
+) -> SolicitudMaterial:
+    """El Administrador da de alta el material con sus Hi y Ci tabulados (NB 58005)."""
+    solicitud = _solicitud_pendiente(solicitud_id)
+    if CatalogoMaterialCombustible.objects.filter(nombre__iexact=solicitud.nombre).exists():
+        raise FiscalizacionConflicto(f"'{solicitud.nombre}' ya existe en el catalogo.")
+
+    material = CatalogoMaterialCombustible.objects.create(
+        nombre=solicitud.nombre,
+        poder_calorifico_mj_kg=poder_calorifico_mj_kg,
+        coeficiente_peligrosidad=coeficiente_peligrosidad,
+    )
+    solicitud.estado = SolicitudMaterial.ESTADO_APROBADA
+    solicitud.material = material
+    solicitud.resuelta_por = administrador
+    solicitud.fecha_resolucion = timezone.now()
+    solicitud.save()
+    registrar_bitacora(
+        usuario=usuario,
+        accion="Aprobar solicitud de material combustible",
+        entidad_afectada="SolicitudMaterial",
+    )
+    return solicitud
+
+
+@transaction.atomic
+def rechazar_solicitud_material(
+    solicitud_id, *, administrador, motivo, usuario
+) -> SolicitudMaterial:
+    motivo = (motivo or "").strip()
+    if not motivo:
+        raise FiscalizacionError("Indica el motivo del rechazo.")
+    solicitud = _solicitud_pendiente(solicitud_id)
+    solicitud.estado = SolicitudMaterial.ESTADO_RECHAZADA
+    solicitud.motivo_rechazo = motivo
+    solicitud.resuelta_por = administrador
+    solicitud.fecha_resolucion = timezone.now()
+    solicitud.save()
+    registrar_bitacora(
+        usuario=usuario,
+        accion="Rechazar solicitud de material combustible",
+        entidad_afectada="SolicitudMaterial",
+    )
+    return solicitud
 
 
 @transaction.atomic

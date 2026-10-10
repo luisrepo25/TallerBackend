@@ -1,5 +1,6 @@
 from django.contrib.gis.db import models
 
+from apps.common.model_fields import UtcDateTimeField
 from apps.usuarios.models import Usuario
 
 # Modelos mapeados 1:1 al schema de BasedeDatos.sql (managed=False).
@@ -40,7 +41,7 @@ class Predio(models.Model):
     area_m2 = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     atributos_extra = models.JSONField(null=True, blank=True)
     geom = models.PolygonField(srid=4326)
-    fecha_registro = models.DateTimeField(auto_now_add=True)
+    fecha_registro = UtcDateTimeField(auto_now_add=True)
     registrado_por = models.ForeignKey(
         Usuario, on_delete=models.PROTECT, db_column="registrado_por"
     )
@@ -70,7 +71,7 @@ class Hidrante(models.Model):
         CatalogoTipoAcople, on_delete=models.PROTECT, db_column="tipo_acople_id"
     )
     geom = models.PointField(srid=4326)
-    fecha_registro = models.DateTimeField(auto_now_add=True)
+    fecha_registro = UtcDateTimeField(auto_now_add=True)
     registrado_por = models.ForeignKey(
         Usuario, on_delete=models.PROTECT, db_column="registrado_por"
     )
@@ -89,7 +90,7 @@ class PredioHidranteCobertura(models.Model):
     hidrante = models.ForeignKey(Hidrante, on_delete=models.CASCADE, db_column="hidrante_id")
     distancia_m = models.DecimalField(max_digits=8, decimal_places=2)
     es_mas_cercano = models.BooleanField(default=False)
-    fecha_calculo = models.DateTimeField(auto_now_add=True)
+    fecha_calculo = UtcDateTimeField(auto_now_add=True)
 
     class Meta:
         managed = False

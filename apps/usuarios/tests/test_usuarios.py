@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.usuarios.models import BitacoraAuditoria, InspectorTecnico, Rol, Usuario
 from apps.usuarios.services import crear_usuario, registrar_bitacora
@@ -151,3 +152,74 @@ class RolPermisoUsuarioViewSetPermissionTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class PerfilTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_perfil_devuelve_usuario_con_sus_subtipos(self):
+        usuario = crear_usuario(
+            nombre_completo="Rosa Vaca",
+            email="rosa.vaca@uubr.org.bo",
+            password="claveSegura123",
+            rol=Rol.objects.get(nombre="Oficial de Mando"),
+            subtipo="oficial_mando",
+        )
+        # Los subtipos se solapan: tambien es Inspector Tecnico.
+        InspectorTecnico.objects.create(usuario=usuario)
+        self.client.force_authenticate(usuario)
+
+        response = self.client.get(reverse("usuarios:perfil"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["email"], "rosa.vaca@uubr.org.bo")
+        self.assertCountEqual(response.data["subtipos"], ["oficial_mando", "inspector_tecnico"])
+        self.assertNotIn("password", response.data)
+
+    def test_perfil_requiere_autenticacion(self):
+        response = self.client.get(reverse("usuarios:perfil"))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class ConsultasPorPeticionTests(TestCase):
+    """La base esta en la nube: cada consulta cuesta ~150-200 ms. Se vigila que el
+    perfil y los permisos no vuelvan a disparar consultas de mas."""
+
+    def test_perfil_se_resuelve_con_una_sola_consulta(self):
+        usuario = crear_usuario(
+            nombre_completo="Eva Rios",
+            email="eva.rios@uubr.org.bo",
+            password="claveSegura123",
+            rol=Rol.objects.get(nombre="Administrador"),
+            subtipo="administrador",
+        )
+        token = AccessToken.for_user(usuario)
+        cliente = APIClient()
+        cliente.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        # Autenticacion (usuario + rol + subtipos): 1 consulta; permisos y serializer: 0
+        with self.assertNumQueries(1):
+            respuesta = cliente.get(reverse("usuarios:perfil"))
+
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data["subtipos"], ["administrador"])
+
+    def test_el_permiso_de_subtipo_no_agrega_consultas(self):
+        usuario = crear_usuario(
+            nombre_completo="Ivo Paz",
+            email="ivo.paz@uubr.org.bo",
+            password="claveSegura123",
+            rol=Rol.objects.get(nombre="Inspector Tecnico"),
+            subtipo="inspector_tecnico",
+        )
+        token = AccessToken.for_user(usuario)
+        cliente = APIClient()
+        cliente.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        # Un Inspector pidiendo un recurso de Administrador: se rechaza (403) y solo
+        # cuesta la consulta de autenticacion
+        with self.assertNumQueries(1):
+            respuesta = cliente.get(reverse("usuarios:rol-list"))
+
+        self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)

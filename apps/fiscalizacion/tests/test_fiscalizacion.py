@@ -288,7 +288,8 @@ class ValidacionesActaTests(BaseFiscalizacionTestCase):
         camp = self.crear_campania()
         self.asignar_inspector(camp, self.inspector)
         # Predio lejos del poligono de la campania
-        predio_fuera = self.crear_predio(x=0.0, y=0.0)
+        # (no en (0, 0): a ~10 000 km la distancia a un hidrante real desborda NUMERIC(8,2))
+        predio_fuera = self.crear_predio(x=-63.50, y=-17.50)
 
         with self.assertRaises(FiscalizacionError):
             registrar_acta(

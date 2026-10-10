@@ -1,5 +1,6 @@
 from django.contrib.gis.db import models
 
+from apps.common.model_fields import UtcDateTimeField
 from apps.usuarios.models import Administrador, InspectorTecnico
 
 # Modelos mapeados 1:1 al schema de BasedeDatos.sql (managed=False).
@@ -25,7 +26,7 @@ class Campania(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default=ESTADO_PENDIENTE)
     geom = models.PolygonField(srid=4326, null=True, blank=True)
     creado_por = models.ForeignKey(Administrador, on_delete=models.PROTECT, db_column="creado_por")
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_creacion = UtcDateTimeField(auto_now_add=True)
 
     class Meta:
         managed = False
@@ -39,7 +40,7 @@ class CampaniaFuncionario(models.Model):
     pk = models.CompositePrimaryKey("campania", "usuario")
     campania = models.ForeignKey(Campania, on_delete=models.CASCADE, db_column="campania_id")
     usuario = models.ForeignKey(InspectorTecnico, on_delete=models.PROTECT, db_column="usuario_id")
-    fecha_asignacion = models.DateTimeField(auto_now_add=True)
+    fecha_asignacion = UtcDateTimeField(auto_now_add=True)
 
     class Meta:
         managed = False

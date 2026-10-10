@@ -13,6 +13,13 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY", default="django-insecure-change-me")
 
+# Cloudinary: almacenamiento de las evidencias fotograficas (RF-13).
+# El API Secret solo vive en el backend (.env); jamas viaja a la web ni al movil.
+CLOUDINARY_CLOUD_NAME = env("CLOUDINARY_CLOUD_NAME", default="")
+CLOUDINARY_API_KEY = env("CLOUDINARY_API_KEY", default="")
+CLOUDINARY_API_SECRET = env("CLOUDINARY_API_SECRET", default="")
+CLOUDINARY_FOLDER = env("CLOUDINARY_FOLDER", default="evidencias_campanias")
+
 DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
@@ -32,6 +39,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "drf_spectacular",
     "corsheaders",
+    "apps.common",  # utilidades compartidas (campos, excepciones, comandos); sin modelos
     "apps.usuarios",
     "apps.catastro",
     "apps.campanias",
@@ -82,6 +90,22 @@ DATABASES = {
         "PASSWORD": env("DB_PASSWORD"),
         "HOST": env("DB_HOST"),
         "PORT": env("DB_PORT", default="5432"),
+        # Reutilizar la conexion con Supabase: abrir una nueva por peticion (TLS a la nube)
+        # tarda ~1.8 s y a veces el pooler la cierra de golpe (500 intermitentes).
+        # CONN_HEALTH_CHECKS descarta una conexion muerta antes de usarla.
+        # 0 = una conexion por peticion. En desarrollo se usa >0 junto con
+        # `runserver --nothreading` (ver docker-compose.yml): con un hilo por peticion,
+        # las conexiones persistentes se acumularian.
+        "CONN_MAX_AGE": env.int("DB_CONN_MAX_AGE", default=0),
+        "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": {
+            "connect_timeout": 10,
+            # TCP keepalives: evitan que un firewall/pooler corte conexiones inactivas
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+        },
         # Los modelos managed=False (BasedeDatos.sql) no tienen migraciones, asi
         # que Django no puede crearlos en una BD de test efimera nueva. Se
         # reutiliza la misma Supabase para tests (decision del equipo: no hay
@@ -125,12 +149,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.usuarios.authentication.JWTAuthenticationConSubtipos",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "apps.common.exceptions.manejar_excepciones",
 }
 
 SPECTACULAR_SETTINGS = {
