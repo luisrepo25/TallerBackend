@@ -20,6 +20,12 @@ CLOUDINARY_API_KEY = env("CLOUDINARY_API_KEY", default="")
 CLOUDINARY_API_SECRET = env("CLOUDINARY_API_SECRET", default="")
 CLOUDINARY_FOLDER = env("CLOUDINARY_FOLDER", default="evidencias_campanias")
 
+# Microservicio de clustering K-Means (Fase 5, RF-17). Servicio interno: solo el backend lo
+# llama, con la clave compartida ML_API_KEY (la misma en el .env del microservicio).
+ML_SERVICE_URL = env("ML_SERVICE_URL", default="http://localhost:8001")
+ML_API_KEY = env("ML_API_KEY", default="")
+ML_TIMEOUT_SEGUNDOS = env.int("ML_TIMEOUT_SEGUNDOS", default=60)
+
 DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])

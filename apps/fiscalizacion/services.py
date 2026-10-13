@@ -86,6 +86,17 @@ def calcular_carga_fuego(acta: ActaInspeccion) -> Decimal:
     return carga.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+def riesgo_extintores(estado_nombre: str) -> Decimal:
+    """Valor de riesgo (0 a 1) del estado de los extintores: Vigente=0.0 / Vencido=0.5 /
+    No posee u otro estado deficiente=1.0. Lo usan el scoring y la analitica (clustering)."""
+    nombre = (estado_nombre or "").lower()
+    if "vigente" in nombre:
+        return Decimal("0.00")
+    if "vencido" in nombre:
+        return Decimal("0.50")
+    return Decimal("1.00")
+
+
 def calcular_scoring_riesgo(acta: ActaInspeccion) -> Decimal:
     """RF-14. Combina las 5 variables de inspeccion en un puntaje continuo de 0 a 100:
     scoring = 100 * sum(peso * valor_normalizado)
@@ -104,14 +115,9 @@ def calcular_scoring_riesgo(acta: ActaInspeccion) -> Decimal:
     v_carga = min(carga / Q_MAX, Decimal("1.00"))
 
     # 2. Estado extintores
-    estado_nombre = (acta.estado_extintores.nombre if acta.estado_extintores else "").lower()
-    if "vigente" in estado_nombre:
-        v_extintores = Decimal("0.00")
-    elif "vencido" in estado_nombre:
-        v_extintores = Decimal("0.50")
-    else:
-        # 'No posee' u otros estados deficientes
-        v_extintores = Decimal("1.00")
+    v_extintores = riesgo_extintores(
+        acta.estado_extintores.nombre if acta.estado_extintores else ""
+    )
 
     # 3. Fallas electricas
     v_fallas = Decimal("1.00") if acta.fallas_electricas else Decimal("0.00")
