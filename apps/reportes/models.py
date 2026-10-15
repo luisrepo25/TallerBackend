@@ -24,9 +24,7 @@ class ReporteGenerado(models.Model):
 
     tipo = models.CharField(max_length=50, choices=TIPO_CHOICES)
     formato = models.CharField(max_length=10, choices=FORMATO_CHOICES)
-    generado_por = models.ForeignKey(
-        Usuario, on_delete=models.PROTECT, db_column="generado_por"
-    )
+    generado_por = models.ForeignKey(Usuario, on_delete=models.PROTECT, db_column="generado_por")
     fecha_generacion = UtcDateTimeField(auto_now_add=True)
     parametros = models.JSONField(null=True, blank=True)
 

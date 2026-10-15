@@ -4,6 +4,9 @@ Plan de trabajo del backend (Django + DRF + PostGIS), dividido entre **Luis** y 
 
 ## Registro de cambios (lo último primero)
 
+### 2026-10-14 — Roly
+- **Fase 6 completa a nivel de backend** (RF-20, CU20): generación de reportes ejecutivos y dictámenes técnicos en formatos PDF (`reportlab`) y Excel (`openpyxl`), con almacenamiento de metadatos en `reportes_generados`, registro en `bitacora_auditoria`, control RBAC (`ReportesPermission` para Administrador y Oficial de Mando) y descarga directa vía streaming HTTP con `Content-Disposition`. 9 tests unitarios/integración automatizados pasando con `--keepdb`. Detalle en la sección Fase 6.
+
 ### 2026-10-13 — Luis
 - **Fase 5 completa a nivel de backend** (RF-17, RF-18, RF-19): microservicio de clustering en `Sistema/MicroservicioML/` (carpeta aparte, será su propio repo), integración en `apps/analitica/` y endpoints `clustering/`, `mapa-calor/`, `distritos/` y `zonas-sugeridas/`. Detalle en la Fase 5.
 - **`BasedeDatos.sql` es ahora el ÚNICO archivo de esquema.** Se eliminaron `parche_v8_1.sql`, `parche_v9_solicitudes_material.sql` y `parche_v10_distritos.sql` (siguen en el historial de git). El archivo quedó **idempotente**: se puede ejecutar completo en Supabase sin duplicar nada, y su cabecera explica cómo agregar cambios futuros. Incluye la tabla nueva `distritos` (v10, **ya creada en Supabase**) y los 3 índices del v8.1.
@@ -164,11 +167,19 @@ Referencia: RF-17 a RF-19, CU17 a CU19
 
 Referencia: RF-20, CU20
 
-- [ ] Modelo `ReporteGenerado`.
-- [ ] Generador de reporte ejecutivo en PDF (ej. `WeasyPrint` o `ReportLab`) con resumen de campaña, predios inspeccionados, distribución de riesgo.
-- [ ] Generador de reporte en Excel (`openpyxl`) con el detalle tabular.
-- [ ] Endpoint que genera y devuelve el archivo (o lo sube a storage y devuelve la URL).
-- [ ] Tests: el PDF/Excel se genera sin errores con datos de prueba.
+- [x] Modelo `ReporteGenerado` — **2026-10-14**. Mapeado a la tabla existente `reportes_generados` (`managed = False`). Registra metadatos de auditoría: `tipo` (`ejecutivo` o `dictamen`), `formato` (`PDF` o `Excel`), filtros utilizados en JSONB (`campania_id`, `acta_id`, `predio_id`), usuario solicitante (`generado_por`) y fecha/hora UTC. Solo `Administrador` y `Oficial de Mando` tienen acceso (`ReportesPermission`).
+- [x] Generador de reporte ejecutivo y dictamen técnico en PDF (`ReportLab`) — **2026-10-14**. Implementado en `apps/reportes/pdf_generator.py`:
+  - **Reporte Ejecutivo**: Resumen consolidado de campaña con métricas de inspección, distribución porcentual y conteo por nivel de riesgo / cluster K-Means, promedio de carga de fuego (NB 58005) y scoring, y tabla detallada de predios inspeccionados.
+  - **Dictamen Técnico de Prevención contra Incendios**: Ficha técnica formal por predio/acta con datos catastrales, contacto del propietario, evaluación de extintores, rutas de evacuación, instalaciones eléctricas, detalle de materiales combustibles calculados, scoring de riesgo y cluster asignado.
+  - Formato institucional UUBR con paleta `#14213D` (azul marino) y `#D7263D` (rojo bomberil), tablas formateadas y paginación dinámica `NumberedCanvas` ("Página X de Y").
+- [x] Generador de reportes en Excel (`openpyxl`) con detalle tabular — **2026-10-14**. Implementado en `apps/reportes/excel_generator.py`:
+  - **Reporte Ejecutivo (Excel)**: Libro con dos hojas: hoja *"Resumen Ejecutivo"* con KPIs agregados, y hoja *"Inspecciones"* con matriz completa de actas, fechas, direcciones, cargas de fuego, scoring y clusters.
+  - **Dictamen Técnico (Excel)**: Hoja técnica estructurada con secciones de datos generales, evaluación de seguridad y desglose analítico de riesgo.
+  - Estilos corporativos UUBR, cabeceras con fondo azul y texto blanco en negrita, bordes finos, alineaciones optimizadas y cálculo automático del ancho de columnas.
+- [x] Endpoints de generación y consulta histórica — **2026-10-14**:
+  - `POST /api/reportes/generar/`: Valida parámetros vía `GenerarReporteInputSerializer`, delega la orquestación a `services.generar_reporte` (que obtiene datos, genera los bytes en memoria con `BytesIO`, registra el reporte en `reportes_generados` y audita en `bitacora_auditoria`), y retorna el archivo descargable como stream binario (`Content-Disposition: attachment; filename=...`, `application/pdf` o `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`).
+  - `GET /api/reportes/reportes/`: `ReporteGeneradoViewSet` (ReadOnly) para consultar el historial de reportes generados con ordenamiento cronológico inverso.
+- [x] Tests automatizados — **2026-10-14**: Suite en `apps/reportes/tests/test_reportes.py` con 9 tests pasando (`--keepdb`): generación de reporte ejecutivo en PDF y Excel, dictamen técnico en PDF y Excel, validación de inputs erróneos, control de permisos RBAC para inspector (prohibido) vs administrador (permitido), y consulta del historial.
 
 ---
 
