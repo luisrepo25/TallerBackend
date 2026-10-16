@@ -452,12 +452,12 @@ def generar_pdf_ejecutivo(datos: dict) -> bytes:
         t_det = Table(
             det_data,
             colWidths=[
-                ancho_util * 0.28,
-                ancho_util * 0.20,
-                ancho_util * 0.20,
+                ancho_util * 0.27,
+                ancho_util * 0.19,
+                ancho_util * 0.16,
                 ancho_util * 0.14,
-                ancho_util * 0.08,
-                ancho_util * 0.10,
+                ancho_util * 0.12,
+                ancho_util * 0.12,
             ],
         )
         t_det.setStyle(

@@ -26,6 +26,22 @@ class ReportesNoEncontrado(ReportesError):
     pass
 
 
+def _formatear_fecha_hora(dt) -> str:
+    """Formatea una fecha/hora en la zona horaria local del sistema (America/La_Paz)."""
+    if not dt:
+        return "—"
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, timezone.get_current_timezone())
+    else:
+        dt = timezone.localtime(dt)
+    return dt.strftime("%d/%m/%Y %H:%M")
+
+
+def _generar_timestamp_local() -> str:
+    """Genera un timestamp formateado en hora local para nombres de archivo."""
+    return timezone.localtime(timezone.now()).strftime("%Y%m%d_%H%M")
+
+
 def obtener_datos_ejecutivo(campania_id: int) -> dict:
     """Extrae y estructura todos los datos estadísticos y operacionales de una campaña
     para la generación de reportes ejecutivos (PDF / Excel)."""
@@ -59,9 +75,12 @@ def obtener_datos_ejecutivo(campania_id: int) -> dict:
     actas_list = list(actas_qs)
     actas_cerradas = [a for a in actas_list if a.cerrada]
     actas_abiertas = [a for a in actas_list if not a.cerrada]
-    predios_inspeccionados = len({a.predio_id for a in actas_list})
+    # Predios inspeccionados = predios con al menos un acta cerrada (RF-10)
+    predios_inspeccionados = len({a.predio_id for a in actas_cerradas})
 
-    avance_pct = round((len(actas_cerradas) / total_predios) * 100, 1) if total_predios > 0 else 0.0
+    avance_pct = (
+        round((predios_inspeccionados / total_predios) * 100, 1) if total_predios > 0 else 0.0
+    )
 
     # Distribución por Cluster de Riesgo (K-Means)
     conteo_critico = sum(1 for a in actas_cerradas if a.cluster_riesgo == "Critico")
@@ -119,9 +138,7 @@ def obtener_datos_ejecutivo(campania_id: int) -> dict:
                     a.predio.tipo_predio.nombre if a.predio and a.predio.tipo_predio else "—"
                 ),
                 "inspector_nombre": (a.inspector.usuario.nombre_completo if a.inspector else "—"),
-                "fecha_inspeccion": (
-                    a.fecha_inspeccion.strftime("%d/%m/%Y %H:%M") if a.fecha_inspeccion else "—"
-                ),
+                "fecha_inspeccion": _formatear_fecha_hora(a.fecha_inspeccion),
                 "carga_fuego": float(a.carga_fuego) if a.carga_fuego is not None else None,
                 "scoring_riesgo": (
                     float(a.scoring_riesgo) if a.scoring_riesgo is not None else None
@@ -172,7 +189,7 @@ def obtener_datos_ejecutivo(campania_id: int) -> dict:
         },
         "infracciones": infracciones_lista,
         "detalles_actas": detalles_actas,
-        "fecha_emision": timezone.now().strftime("%d/%m/%Y %H:%M"),
+        "fecha_emision": _formatear_fecha_hora(timezone.now()),
     }
 
 
@@ -269,13 +286,9 @@ def obtener_datos_dictamen(acta_id: int | None = None, predio_id: int | None = N
             "uuid_local": str(acta.uuid_local) if acta.uuid_local else "—",
             "campania_nombre": acta.campania.nombre if acta.campania else "Inspección General",
             "inspector_nombre": (acta.inspector.usuario.nombre_completo if acta.inspector else "—"),
-            "fecha_inspeccion": (
-                acta.fecha_inspeccion.strftime("%d/%m/%Y %H:%M") if acta.fecha_inspeccion else "—"
-            ),
+            "fecha_inspeccion": _formatear_fecha_hora(acta.fecha_inspeccion),
             "cerrada": acta.cerrada,
-            "fecha_cierre": (
-                acta.fecha_cierre.strftime("%d/%m/%Y %H:%M") if acta.fecha_cierre else "—"
-            ),
+            "fecha_cierre": _formatear_fecha_hora(acta.fecha_cierre),
             "carga_fuego": float(acta.carga_fuego) if acta.carga_fuego is not None else None,
             "scoring_riesgo": (
                 float(acta.scoring_riesgo) if acta.scoring_riesgo is not None else None
@@ -301,7 +314,7 @@ def obtener_datos_dictamen(acta_id: int | None = None, predio_id: int | None = N
         "materiales": materiales,
         "infracciones": infracciones,
         "total_evidencias": total_evidencias,
-        "fecha_emision": timezone.now().strftime("%d/%m/%Y %H:%M"),
+        "fecha_emision": _formatear_fecha_hora(timezone.now()),
     }
 
 
@@ -318,7 +331,7 @@ def generar_reporte(
     """Orquesta la extracción de datos, renderizado en formato PDF o Excel, registro
     en auditoría y bitácora, devolviendo los bytes del archivo y metadatos HTTP."""
     parametros = {}
-    timestamp = timezone.now().strftime("%Y%m%d_%H%M")
+    timestamp = _generar_timestamp_local()
 
     if tipo == ReporteGenerado.TIPO_EJECUTIVO:
         if not campania_id:
