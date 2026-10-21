@@ -22,3 +22,4 @@ htmlcov/
 *.drawio
 *.xml
 build_all_ea_xml.py
+build_diseno_datos_drawio.py

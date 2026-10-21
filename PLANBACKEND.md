@@ -214,3 +214,31 @@ Referencia: RF-21, CU23 — **este módulo es crítico, no dejarlo para el final
 - Antes de tocar el módulo del otro, avisen — aunque la división busca minimizar cruces, `ActaInspeccion` (Fase 4) depende de modelos de Fase 1, 2 y 3, así que esas deben ir razonablemente avanzadas primero.
 - Cualquier decisión que no esté clara en `CLAUDE.md` ni en este plan (fórmula exacta del scoring, proveedor de storage para fotos, hosting de despliegue) se define en conjunto antes de programarla — no se asume.
 - Actualicen este archivo conforme avancen; es más útil que un grupo de WhatsApp para saber en qué está el otro.
+
+
+-- lista de casos de uso
+
+Identificador	Nombre
+CU01	Autenticación de Usuarios
+CU02	Gestión de Roles y Permisos
+CU03	Registro de Bitácora de Auditoría
+CU04	Registro de Predios Georreferenciados
+CU05	Registro de Hidrantes
+CU06	Cálculo de Distancia al Hidrante más Cercano
+CU07	Creación de Campaña de Fiscalización
+CU08	Delimitación de Zona Geográfica de Campaña
+CU09	Asignación de funcionarios a Campaña
+CU10	Consulta de Estado y Avance de Campaña
+CU11	Cierre de Campaña
+CU12	Registro de Acta de Inspección Técnica
+CU13	Captura de Evidencia Fotográfica
+CU14	Cálculo de Scoring de Riesgo
+CU15	Consulta de Historial de Inspecciones
+CU16	Registro de Reincidencia de Infracción
+CU17	Ejecución de Clustering K-Means
+CU18	Generación de Mapa de Calor de Riesgo
+CU19	Priorización de Nuevas Campañas
+CU20	Generación y Exportación de Reportes
+CU21	Registro de Materiales Combustibles
+CU22	Cálculo de Carga de Fuego (NB 58005)
+CU23	Sincronización de Actas Offline
