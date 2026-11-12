@@ -13,7 +13,9 @@ SUBTIPOS_MODELOS = {
 
 
 @transaction.atomic
-def crear_usuario(*, nombre_completo, email, password, rol, subtipo, datos_subtipo=None):
+def crear_usuario(
+    *, nombre_completo, email, password, rol, subtipo, datos_subtipo=None, telefono=None
+):
     """Crea un Usuario y su registro de subtipo funcional en una sola transaccion.
 
     `subtipo` es una clave de SUBTIPOS_MODELOS ("administrador", "inspector_tecnico"
@@ -21,7 +23,11 @@ def crear_usuario(*, nombre_completo, email, password, rol, subtipo, datos_subti
     llamadas separadas (los subtipos se solapan, no son el `rol`).
     """
     usuario = Usuario.objects.create_user(
-        email=email, password=password, nombre_completo=nombre_completo, rol=rol
+        email=email,
+        password=password,
+        nombre_completo=nombre_completo,
+        rol=rol,
+        telefono=telefono,
     )
     modelo_subtipo = SUBTIPOS_MODELOS[subtipo]
     modelo_subtipo.objects.create(usuario=usuario, **(datos_subtipo or {}))

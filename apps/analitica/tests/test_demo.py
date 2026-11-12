@@ -89,8 +89,10 @@ class CargarDatosDemoTests(TestCase):
             )
 
     def test_carga_usa_los_servicios_reales_y_se_borra_completa(self):
-        predios_reales = Predio.objects.exclude(atributos_extra__demo=True).count()
-        actas_reales = ActaInspeccion.objects.exclude(predio__atributos_extra__demo=True).count()
+        predios_reales = Predio.objects.exclude(atributos_extra__contains={"demo": True}).count()
+        actas_reales = ActaInspeccion.objects.exclude(
+            predio__atributos_extra__contains={"demo": True}
+        ).count()
 
         resultado = demo.cargar(por_tipo=1)
 

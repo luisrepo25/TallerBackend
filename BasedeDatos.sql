@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email           VARCHAR(150) NOT NULL UNIQUE,
     password_hash   VARCHAR(255) NOT NULL,
     rol_id          INTEGER NOT NULL REFERENCES roles(id),
+    telefono        VARCHAR(20),
     activo          BOOLEAN NOT NULL DEFAULT TRUE,
     fecha_registro  TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -319,12 +320,36 @@ CREATE TABLE IF NOT EXISTS clustering_ejecuciones (
 
 CREATE TABLE IF NOT EXISTS reportes_generados (
     id                  SERIAL PRIMARY KEY,
-    tipo                VARCHAR(50) NOT NULL CHECK (tipo IN ('dictamen', 'ejecutivo')),
-    formato             VARCHAR(10) NOT NULL CHECK (formato IN ('PDF', 'Excel')),
+    tipo                VARCHAR(50) NOT NULL CHECK (tipo IN ('dictamen', 'ejecutivo', 'dinamico')),
+    formato             VARCHAR(10) NOT NULL CHECK (formato IN ('PDF', 'Excel', 'TXT')),
     generado_por        INTEGER NOT NULL REFERENCES usuarios(id),
     fecha_generacion    TIMESTAMP NOT NULL DEFAULT NOW(),
     parametros          JSONB
 );
+
+-- Reportes dinamicos del Agente de Reportes (RF-20 extendido): el usuario pide un reporte
+-- en lenguaje natural (texto, voz o filtros) y el agente elige una consulta parametrizada
+-- (nunca SQL libre). Se guarda el resultado completo para re-exportarlo con otras columnas
+-- sin volver a consultar ni llamar al LLM. Cada exportacion queda en reportes_generados
+-- (tipo 'dinamico').
+CREATE TABLE IF NOT EXISTS reportes_dinamicos (
+    id                    UUID PRIMARY KEY,
+    pregunta              TEXT NOT NULL,
+    titulo                VARCHAR(150) NOT NULL,
+    interpretacion        JSONB NOT NULL,
+    columnas              JSONB NOT NULL,
+    columnas_disponibles  JSONB NOT NULL,
+    filas                 JSONB NOT NULL,
+    grafico               JSONB,
+    kpis                  JSONB,
+    respuesta_nl          TEXT,
+    motor                 VARCHAR(20) NOT NULL CHECK (motor IN ('llm', 'reglas')),
+    idempotency_key       VARCHAR(100) UNIQUE,
+    generado_por          INTEGER NOT NULL REFERENCES usuarios(id),
+    fecha_generacion      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reportes_dinamicos_usuario ON reportes_dinamicos (generado_por);
 
 -- AUDITORIA
 -- rol_id es un SNAPSHOT historico (que rol tenia el usuario al
@@ -428,14 +453,27 @@ ALTER TABLE evidencias_fotograficas         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE infracciones                    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clustering_ejecuciones          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reportes_generados              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reportes_dinamicos              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bitacora_auditoria              ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- 10. MIGRACIONES
 -- Cambios sobre tablas que ya existen en Supabase (columnas nuevas, restricciones).
--- Siempre idempotentes. Hoy no hay ninguno pendiente. Ejemplo:
+-- Siempre idempotentes. Ejemplo:
 --   ALTER TABLE predios ADD COLUMN IF NOT EXISTS zona VARCHAR(50);
 -- ============================================================
+
+-- 2026-11-12: Campo telefono opcional para usuarios (notificaciones / WhatsApp)
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);
+
+-- 2026-11-12: Agente de Reportes. Las exportaciones de reportes dinamicos se auditan en
+-- reportes_generados con tipo 'dinamico' y admiten formato 'TXT'.
+ALTER TABLE reportes_generados DROP CONSTRAINT IF EXISTS reportes_generados_tipo_check;
+ALTER TABLE reportes_generados ADD CONSTRAINT reportes_generados_tipo_check
+    CHECK (tipo IN ('dictamen', 'ejecutivo', 'dinamico'));
+ALTER TABLE reportes_generados DROP CONSTRAINT IF EXISTS reportes_generados_formato_check;
+ALTER TABLE reportes_generados ADD CONSTRAINT reportes_generados_formato_check
+    CHECK (formato IN ('PDF', 'Excel', 'TXT'));
 
 -- ============================================================
 -- EJEMPLOS DE USO

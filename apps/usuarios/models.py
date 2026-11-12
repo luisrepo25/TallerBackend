@@ -58,6 +58,7 @@ class Usuario(AbstractBaseUser):
     email = models.CharField(max_length=150, unique=True)
     password = models.CharField(max_length=255, db_column="password_hash")
     rol = models.ForeignKey(Rol, on_delete=models.PROTECT, db_column="rol_id")
+    telefono = models.CharField(max_length=20, null=True, blank=True)
     activo = models.BooleanField(default=True)
     fecha_registro = UtcDateTimeField(auto_now_add=True)
 

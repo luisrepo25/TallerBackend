@@ -247,8 +247,8 @@ class ScoringRiesgoTests(BaseFiscalizacionTestCase):
             estado_extintores=self.extintor_vigente,
             fallas_electricas=False,
             rutas_evacuacion_despejadas=True,
-            distancia_hidrante_m=None,
         )
+        acta.distancia_hidrante_m = None
         acta.carga_fuego = Decimal("0.00")
         score = calcular_scoring_riesgo(acta)
         # Distancia hidrante None toma 1.0 * 0.10 * 100 = 10.00

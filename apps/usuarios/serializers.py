@@ -26,7 +26,16 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Usuario
-        fields = ["id", "nombre_completo", "email", "rol", "activo", "fecha_registro", "subtipos"]
+        fields = [
+            "id",
+            "nombre_completo",
+            "email",
+            "telefono",
+            "rol",
+            "activo",
+            "fecha_registro",
+            "subtipos",
+        ]
 
     def get_subtipos(self, usuario) -> list[str]:
         return obtener_subtipos(usuario)
@@ -36,10 +45,20 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     subtipo = serializers.ChoiceField(choices=list(SUBTIPOS_MODELOS), write_only=True)
     datos_subtipo = serializers.DictField(required=False, write_only=True)
+    telefono = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = Usuario
-        fields = ["id", "nombre_completo", "email", "password", "rol", "subtipo", "datos_subtipo"]
+        fields = [
+            "id",
+            "nombre_completo",
+            "email",
+            "telefono",
+            "password",
+            "rol",
+            "subtipo",
+            "datos_subtipo",
+        ]
 
     def create(self, validated_data):
         return crear_usuario(
@@ -49,4 +68,5 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
             rol=validated_data["rol"],
             subtipo=validated_data["subtipo"],
             datos_subtipo=validated_data.get("datos_subtipo"),
+            telefono=validated_data.get("telefono"),
         )

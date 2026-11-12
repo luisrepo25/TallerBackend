@@ -216,6 +216,10 @@ Referencia: RF-21, CU23 — **este módulo es crítico, no dejarlo para el final
 - Actualicen este archivo conforme avancen; es más útil que un grupo de WhatsApp para saber en qué está el otro.
 
 
+
+-- se modifico la base de datos en usuarios , se agrego el atributo telefono, tambien se agrego la tabla de reportes dinamicos y hubo un cambio en un par de atributos de la tabla reportes , se cambiara en la documentacion despues
+
+
 -- lista de casos de uso
 
 Identificador	Nombre

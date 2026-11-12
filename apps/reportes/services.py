@@ -7,8 +7,10 @@ from apps.catastro.models import Predio, PredioHidranteCobertura
 from apps.fiscalizacion.models import ActaInspeccion, Infraccion
 from apps.usuarios.services import registrar_bitacora
 
+from .agente import exportador as agente_exportador
+from .agente import orquestador as agente_orquestador
 from .excel_generator import generar_excel_dictamen, generar_excel_ejecutivo
-from .models import ReporteGenerado
+from .models import ReporteDinamico, ReporteGenerado
 from .pdf_generator import generar_pdf_dictamen, generar_pdf_ejecutivo
 
 
@@ -392,3 +394,85 @@ def generar_reporte(
     )
 
     return contenido, content_type, filename, reporte_generado
+
+
+def generar_reporte_dinamico(*, pregunta: str, usuario, idempotency_key: str | None = None) -> dict:
+    """Invoca al Agente Inteligente de Reportes (Fase 6 extendido / F7)."""
+    try:
+        return agente_orquestador.procesar_consulta_agente(
+            pregunta=pregunta, usuario=usuario, idempotency_key=idempotency_key
+        )
+    except Exception as exc:
+        raise ReportesError(str(exc)) from exc
+
+
+@transaction.atomic
+def exportar_reporte_dinamico(
+    *, id_reporte, formato: str, columnas: list[str] | None = None, usuario
+) -> tuple[bytes | str, str, str, ReporteGenerado]:
+    """Exporta un reporte dinamico previamente generado en PDF, Excel o TXT."""
+    try:
+        reporte_obj = ReporteDinamico.objects.get(id=id_reporte)
+    except (ReporteDinamico.DoesNotExist, ValueError):
+        raise ReportesNoEncontrado(f"No existe el reporte dinámico con ID {id_reporte}.") from None
+
+    reporte_dict = {
+        "id": str(reporte_obj.id),
+        "pregunta": reporte_obj.pregunta,
+        "titulo": reporte_obj.titulo,
+        "filas": reporte_obj.filas,
+        "columnas": reporte_obj.columnas,
+        "columnas_disponibles": reporte_obj.columnas_disponibles,
+        "respuesta_nl": reporte_obj.respuesta_nl,
+        "grafico": reporte_obj.grafico,
+        "kpis": reporte_obj.kpis,
+    }
+
+    timestamp = _generar_timestamp_local()
+    slug_titulo = (
+        reporte_obj.titulo.lower()
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("á", "a")
+        .replace("é", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ú", "u")[:30]
+    )
+
+    f_upper = formato.strip().upper()
+    if f_upper == "PDF":
+        formato_db = ReporteGenerado.FORMATO_PDF
+        contenido = agente_exportador.exportar_pdf(reporte_dict, columnas)
+        content_type = "application/pdf"
+        filename = f"reporte_dinamico_{slug_titulo}_{timestamp}.pdf"
+    elif f_upper in ("EXCEL", "XLSX"):
+        formato_db = ReporteGenerado.FORMATO_EXCEL
+        contenido = agente_exportador.exportar_excel(reporte_dict, columnas)
+        content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        filename = f"reporte_dinamico_{slug_titulo}_{timestamp}.xlsx"
+    elif f_upper in ("TXT", "TEXT"):
+        formato_db = ReporteGenerado.FORMATO_TXT
+        contenido = agente_exportador.exportar_txt(reporte_dict, columnas).encode("utf-8")
+        content_type = "text/plain; charset=utf-8"
+        filename = f"reporte_dinamico_{slug_titulo}_{timestamp}.txt"
+    else:
+        raise ReportesError(f"Formato no soportado: {formato}. Opciones válidas: PDF, Excel, TXT.")
+
+    reporte_audit = ReporteGenerado.objects.create(
+        tipo=ReporteGenerado.TIPO_DINAMICO,
+        formato=formato_db,
+        generado_por=usuario,
+        parametros={
+            "reporte_dinamico_id": str(reporte_obj.id),
+            "columnas_exportadas": columnas or [c["clave"] for c in reporte_obj.columnas],
+        },
+    )
+
+    registrar_bitacora(
+        usuario=usuario,
+        accion=f"Exportar reporte dinamico ({formato_db}): {reporte_obj.titulo[:70]}",
+        entidad_afectada="ReporteDinamico",
+    )
+
+    return contenido, content_type, filename, reporte_audit

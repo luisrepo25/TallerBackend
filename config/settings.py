@@ -26,6 +26,13 @@ ML_SERVICE_URL = env("ML_SERVICE_URL", default="http://localhost:8001")
 ML_API_KEY = env("ML_API_KEY", default="")
 ML_TIMEOUT_SEGUNDOS = env.int("ML_TIMEOUT_SEGUNDOS", default=60)
 
+# Agente de Reportes (LLM con tool calling, API compatible con OpenAI: Groq por defecto).
+# Sin GROQ_API_KEY el agente funciona igual con el interprete de reglas (motor "reglas").
+GROQ_API_KEY = env("GROQ_API_KEY", default="")
+GROQ_MODEL = env("GROQ_MODEL", default="llama-3.3-70b-versatile")
+GROQ_API_URL = env("GROQ_API_URL", default="https://api.groq.com/openai/v1/chat/completions")
+GROQ_TIMEOUT_SEGUNDOS = env.int("GROQ_TIMEOUT_SEGUNDOS", default=30)
+
 DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
