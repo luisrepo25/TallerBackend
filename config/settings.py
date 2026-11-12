@@ -157,18 +157,21 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "apps.usuarios.authentication.JWTAuthenticationConSubtipos",
     ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.common.exceptions.manejar_excepciones",
 }
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "API Sistema de Riesgo de Incendios",
-    "DESCRIPTION": "API del backend para evaluacion y zonificacion de riesgo de incendios (Bomberos UUBR).",
+    "DESCRIPTION": (
+        "API del backend para evaluacion y zonificacion de riesgo de incendios (Bomberos UUBR)."
+    ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "EstadoCampaniaEnum": "apps.campanias.models.Campania.ESTADO_CHOICES",
+    },
 }
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])

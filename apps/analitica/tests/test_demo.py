@@ -7,7 +7,8 @@ from apps.analitica import demo_simulacion as sim
 from apps.campanias.models import Campania
 from apps.catastro.models import Hidrante, Predio
 from apps.fiscalizacion.models import ActaInspeccion
-from apps.usuarios.models import Usuario
+from apps.usuarios.models import Administrador, Rol, Usuario
+from apps.usuarios.services import crear_usuario
 
 MATERIALES = ["Madera", "Papel y carton", "Telas y textiles", "Plasticos (PVC/PET)", "Liquidos"]
 INFRACCIONES = ["Extintor vencido", "Instalacion electrica", "Ruta obstruida", "Inflamables"]
@@ -77,6 +78,16 @@ class SimulacionTests(SimpleTestCase):
 
 
 class CargarDatosDemoTests(TestCase):
+    def setUp(self):
+        if not Administrador.objects.exists():
+            crear_usuario(
+                nombre_completo="Admin Test Demo",
+                email="admin.test.demo@uubr.org.bo",
+                password="claveSegura123",
+                rol=Rol.objects.get(nombre="Administrador"),
+                subtipo="administrador",
+            )
+
     def test_carga_usa_los_servicios_reales_y_se_borra_completa(self):
         predios_reales = Predio.objects.exclude(atributos_extra__demo=True).count()
         actas_reales = ActaInspeccion.objects.exclude(predio__atributos_extra__demo=True).count()

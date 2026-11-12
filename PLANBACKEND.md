@@ -201,11 +201,11 @@ Referencia: RF-21, CU23 — **este módulo es crítico, no dejarlo para el final
 
 ## Fase 8 — Documentación, testing final y despliegue (AMBOS)
 
-- [ ] Revisar que la documentación Swagger (`drf-spectacular`) cubra todos los endpoints con ejemplos.
-- [ ] Suite de tests de integración end-to-end de al menos un flujo completo (crear campaña → asignar inspector → registrar acta con materiales → cerrar acta → ejecutar clustering → generar reporte).
+- [x] Revisar que la documentación Swagger (`drf-spectacular`) cubra todos los endpoints con ejemplos — **2026-11-11**. Registrado `JWTAuthenticationConSubtiposScheme` para autenticación Bearer en Swagger UI (`/api/docs/`), tipado en `UsuarioSerializer.get_subtipos` y `ENUM_NAME_OVERRIDES` en `settings.py`; validado con `python manage.py spectacular --validate` (0 errores, 0 warnings).
+- [x] Suite de tests de integración end-to-end de al menos un flujo completo (crear campaña → asignar inspector → registrar acta con materiales → cerrar acta → ejecutar clustering → generar reporte) — **2026-11-11**. `apps/reportes/tests/test_flujo_completo.py` (`FlujoCompletoIntegracionE2ETests`). Corregida duplicación de entradas de bitácora en `ActaInspeccionViewSet`.
 - [ ] Configurar despliegue (Railway, Render, u otro — definir con el resto del equipo) apuntando a la BD de Supabase. Ahora son **dos servicios** a desplegar: el backend Django y el microservicio de clustering (`MicroservicioML`, que solo debe ser accesible desde el backend, con su `ML_API_KEY`).
-- [ ] Variables de entorno de producción separadas de desarrollo.
-- [ ] Checklist de seguridad antes de entregar: `DEBUG=False`, `ALLOWED_HOSTS` configurado, CORS restringido al dominio del frontend y la app.
+- [x] Variables de entorno de producción separadas de desarrollo — **2026-11-11**.
+- [x] Checklist de seguridad antes de entregar: `DEBUG=False`, `ALLOWED_HOSTS` configurado, CORS restringido al dominio del frontend y la app — **2026-11-11**.
 
 ---
 

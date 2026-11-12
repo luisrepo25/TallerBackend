@@ -1,4 +1,5 @@
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.contrib.rest_framework_simplejwt import SimpleJWTScheme
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
 from rest_framework_simplejwt.settings import api_settings
@@ -32,3 +33,7 @@ class JWTAuthenticationConSubtipos(JWTAuthentication):
         if not user.is_active:
             raise AuthenticationFailed(_("User is inactive"), code="user_inactive")
         return user
+
+
+class JWTAuthenticationConSubtiposScheme(SimpleJWTScheme):
+    target_class = "apps.usuarios.authentication.JWTAuthenticationConSubtipos"

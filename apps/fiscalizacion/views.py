@@ -190,12 +190,9 @@ class ActaInspeccionViewSet(BitacoraAuditoriaMixin, viewsets.ModelViewSet):
         .order_by("-fecha_inspeccion")
     )
     permission_classes = [IsInspectorTecnicoOrReadOnly]
+    # create, cerrar, infracciones y evidencias ya registran en bitacora dentro de services.py
     bitacora_acciones = {
-        "create": "Registrar acta de inspeccion",
-        "cerrar": "Cerrar acta de inspeccion",
         "materiales": "Registrar materiales combustibles",
-        "infracciones": "Registrar infraccion",
-        "evidencias": "Subir evidencia fotografica",
     }
 
     def get_serializer_class(self):

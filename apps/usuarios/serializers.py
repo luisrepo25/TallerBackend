@@ -28,7 +28,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         model = Usuario
         fields = ["id", "nombre_completo", "email", "rol", "activo", "fecha_registro", "subtipos"]
 
-    def get_subtipos(self, usuario):
+    def get_subtipos(self, usuario) -> list[str]:
         return obtener_subtipos(usuario)
 
 
