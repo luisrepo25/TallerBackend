@@ -1,5 +1,5 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import viewsets
+from rest_framework import generics, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,11 +9,14 @@ from rest_framework.views import APIView
 from .models import Permiso, Rol, Usuario
 from .permissions import IsAdministrador
 from .serializers import (
+    BitacoraAuditoriaSerializer,
+    BitacoraFiltrosSerializer,
     PermisoSerializer,
     RolSerializer,
     UsuarioCreateSerializer,
     UsuarioSerializer,
 )
+from .services import listar_acciones_bitacora, listar_bitacora
 
 
 class PerfilView(APIView):
@@ -49,3 +52,30 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             return UsuarioCreateSerializer
         return UsuarioSerializer
+
+
+class BitacoraListView(generics.ListAPIView):
+    """Consulta de la bitacora de auditoria (CU03). Solo Administrador, solo lectura."""
+
+    serializer_class = BitacoraAuditoriaSerializer
+    permission_classes = [IsAdministrador]
+    pagination_class = None
+
+    @extend_schema(parameters=[BitacoraFiltrosSerializer])
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        filtros = BitacoraFiltrosSerializer(data=self.request.query_params)
+        filtros.is_valid(raise_exception=True)
+        return listar_bitacora(**filtros.validated_data)
+
+
+class BitacoraAccionesView(APIView):
+    """Acciones distintas registradas en la bitacora (opciones del filtro)."""
+
+    permission_classes = [IsAdministrador]
+
+    @extend_schema(responses={200: list[str]})
+    def get(self, request):
+        return Response(listar_acciones_bitacora())

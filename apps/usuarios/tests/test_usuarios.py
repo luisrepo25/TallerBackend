@@ -223,3 +223,97 @@ class ConsultasPorPeticionTests(TestCase):
             respuesta = cliente.get(reverse("usuarios:rol-list"))
 
         self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class ConsultaBitacoraTests(TestCase):
+    """CU03: la bitacora se consulta solo como Administrador, con filtros y tope.
+
+    Los tests corren sobre la BD compartida (ver settings.py), que ya tiene registros
+    reales: por eso cada consulta se acota a los usuarios creados aqui.
+    """
+
+    def setUp(self):
+        self.administrador = crear_usuario(
+            nombre_completo="Admin Bitacora",
+            email="admin.bitacora@uubr.org.bo",
+            password="claveSegura123",
+            rol=Rol.objects.get(nombre="Administrador"),
+            subtipo="administrador",
+        )
+        self.inspector = crear_usuario(
+            nombre_completo="Inspector Bitacora",
+            email="inspector.bitacora@uubr.org.bo",
+            password="claveSegura123",
+            rol=Rol.objects.get(nombre="Inspector Tecnico"),
+            subtipo="inspector_tecnico",
+        )
+        registrar_bitacora(
+            usuario=self.administrador, accion="Crear campania", entidad_afectada="Campania"
+        )
+        registrar_bitacora(
+            usuario=self.inspector, accion="Zzz accion de prueba", entidad_afectada="ActaInspeccion"
+        )
+        registrar_bitacora(
+            usuario=self.inspector, accion="Zzz accion de prueba", entidad_afectada="ActaInspeccion"
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.administrador)
+        self.url = reverse("usuarios:bitacora")
+
+    def test_lista_con_el_mas_reciente_primero_y_snapshot_del_rol(self):
+        datos = self.client.get(self.url, {"usuario_id": self.inspector.id}).json()
+
+        self.assertEqual(len(datos), 2)
+        self.assertGreater(datos[0]["id"], datos[1]["id"])
+        self.assertEqual(datos[0]["rol"], "Inspector Tecnico")
+        self.assertEqual(datos[0]["usuario_email"], "inspector.bitacora@uubr.org.bo")
+
+    def test_filtra_por_usuario_y_por_accion(self):
+        por_usuario = self.client.get(self.url, {"usuario_id": self.administrador.id}).json()
+        por_accion = self.client.get(self.url, {"accion": "Zzz accion de prueba"}).json()
+
+        self.assertEqual([r["accion"] for r in por_usuario], ["Crear campania"])
+        self.assertEqual({r["usuario_id"] for r in por_accion}, {self.inspector.id})
+
+    def test_filtra_por_rango_de_fechas(self):
+        filtro = {"usuario_id": self.inspector.id}
+        hoy = (
+            BitacoraAuditoria.objects.filter(usuario=self.inspector)
+            .first()
+            .fecha.date()
+            .isoformat()
+        )
+
+        self.assertEqual(
+            len(self.client.get(self.url, {**filtro, "desde": hoy, "hasta": hoy}).json()), 2
+        )
+        self.assertEqual(self.client.get(self.url, {**filtro, "desde": "2999-01-01"}).json(), [])
+
+    def test_rango_invertido_devuelve_400_con_el_campo(self):
+        response = self.client.get(self.url, {"desde": "2026-10-10", "hasta": "2026-10-01"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("hasta", response.json())
+
+    def test_el_limite_acota_los_resultados(self):
+        self.assertEqual(len(self.client.get(self.url, {"limite": 1}).json()), 1)
+
+    def test_acciones_distintas_para_el_filtro(self):
+        acciones = self.client.get(reverse("usuarios:bitacora-acciones")).json()
+
+        self.assertEqual(acciones.count("Zzz accion de prueba"), 1)
+        self.assertIn("Crear campania", acciones)
+
+    def test_solo_el_administrador_puede_consultarla(self):
+        self.client.force_authenticate(user=self.inspector)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            self.client.get(reverse("usuarios:bitacora-acciones")).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+        self.client.force_authenticate(user=None)
+        self.assertIn(
+            self.client.get(self.url).status_code,
+            (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+        )
