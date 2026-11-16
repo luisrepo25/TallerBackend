@@ -1,3 +1,6 @@
+import re
+import unicodedata
+
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -42,6 +45,14 @@ def _formatear_fecha_hora(dt) -> str:
 def _generar_timestamp_local() -> str:
     """Genera un timestamp formateado en hora local para nombres de archivo."""
     return timezone.localtime(timezone.now()).strftime("%Y%m%d_%H%M")
+
+
+def _slugify_archivo(texto: str, max_len: int = 30) -> str:
+    """Convierte un título o nombre en un slug ASCII limpio para cabeceras HTTP."""
+    norm = unicodedata.normalize("NFKD", str(texto or "reporte"))
+    sin_tildes = "".join(c for c in norm if not unicodedata.combining(c))
+    slug = re.sub(r"[^a-z0-9]+", "_", sin_tildes.lower()).strip("_")
+    return (slug or "reporte")[:max_len]
 
 
 def obtener_datos_ejecutivo(campania_id: int) -> dict:
@@ -340,7 +351,8 @@ def generar_reporte(
             raise ReportesError("campania_id es requerido para reporte ejecutivo.")
         parametros["campania_id"] = campania_id
         datos = obtener_datos_ejecutivo(campania_id)
-        slug_campania = datos["campania"]["nombre"].lower().replace(" ", "_").replace("/", "_")[:30]
+        parametros["campania_nombre"] = datos["campania"]["nombre"]
+        slug_campania = _slugify_archivo(datos["campania"]["nombre"])
 
         if formato == ReporteGenerado.FORMATO_PDF:
             contenido = generar_pdf_ejecutivo(datos)
@@ -362,7 +374,8 @@ def generar_reporte(
             parametros["predio_id"] = predio_id
 
         datos = obtener_datos_dictamen(acta_id=acta_id, predio_id=predio_id)
-        slug_predio = datos["predio"]["nombre"].lower().replace(" ", "_").replace("/", "_")[:30]
+        parametros["predio_nombre"] = datos["predio"]["nombre"]
+        slug_predio = _slugify_archivo(datos["predio"]["nombre"])
         id_acta = datos["acta"]["id"]
 
         if formato == ReporteGenerado.FORMATO_PDF:
@@ -429,16 +442,7 @@ def exportar_reporte_dinamico(
     }
 
     timestamp = _generar_timestamp_local()
-    slug_titulo = (
-        reporte_obj.titulo.lower()
-        .replace(" ", "_")
-        .replace("/", "_")
-        .replace("á", "a")
-        .replace("é", "e")
-        .replace("í", "i")
-        .replace("ó", "o")
-        .replace("ú", "u")[:30]
-    )
+    slug_titulo = _slugify_archivo(reporte_obj.titulo)
 
     f_upper = formato.strip().upper()
     if f_upper == "PDF":
@@ -472,6 +476,8 @@ def exportar_reporte_dinamico(
         generado_por=usuario,
         parametros={
             "reporte_dinamico_id": str(reporte_obj.id),
+            "titulo": reporte_obj.titulo,
+            "pregunta": reporte_obj.pregunta[:120],
             "columnas_exportadas": columnas or [c["clave"] for c in reporte_obj.columnas],
         },
     )

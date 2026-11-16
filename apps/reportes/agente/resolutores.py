@@ -127,6 +127,22 @@ def resolver_cluster(valor) -> str | None:
     raise ParametroInvalido(f"Nivel de riesgo '{valor}' invalido. Usa: Bajo, Medio o Critico.")
 
 
+SINONIMOS_DISTRITO = {
+    "plan 3000": "8",
+    "plan tres mil": "8",
+    "villa 1": "7",
+    "villa primero": "7",
+    "pampa de la isla": "6",
+    "el bajio": "10",
+    "pirai": "1",
+    "equipetrol": "1",
+    "casco viejo": "11",
+    "palmasola": "12",
+    "montero": "15",
+    "hoyos": "15",
+}
+
+
 def resolver_distrito(valor) -> Distrito | None:
     if vacio(valor):
         return None
@@ -134,8 +150,10 @@ def resolver_distrito(valor) -> Distrito | None:
     distritos = list(Distrito.objects.order_by("pk"))
     if "industrial" in texto:
         return next((d for d in distritos if "industrial" in normalizar(d.nombre)), None)
-    if "montero" in texto or "hoyos" in texto:
-        texto = "15"
+    for alias, num_distrito in SINONIMOS_DISTRITO.items():
+        if alias in texto:
+            texto = num_distrito
+            break
     numero = re.search(r"\d+", texto)
     if numero:
         patron = rf"(?<!\d){numero.group()}(?!\d)"

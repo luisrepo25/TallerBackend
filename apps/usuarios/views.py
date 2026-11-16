@@ -17,7 +17,7 @@ from .serializers import (
     UsuarioSerializer,
     UsuarioUpdateSerializer,
 )
-from .services import listar_acciones_bitacora, listar_bitacora
+from .services import listar_acciones_bitacora, listar_bitacora, registrar_bitacora
 
 
 class PerfilView(APIView):
@@ -55,6 +55,22 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         if self.action in ("update", "partial_update"):
             return UsuarioUpdateSerializer
         return UsuarioSerializer
+
+    def perform_create(self, serializer):
+        usuario = serializer.save()
+        registrar_bitacora(
+            usuario=self.request.user,
+            accion=f"Crear usuario: {usuario.email}",
+            entidad_afectada="Usuario",
+        )
+
+    def perform_update(self, serializer):
+        usuario = serializer.save()
+        registrar_bitacora(
+            usuario=self.request.user,
+            accion=f"Actualizar usuario: {usuario.email}",
+            entidad_afectada="Usuario",
+        )
 
 
 class BitacoraListView(generics.ListAPIView):

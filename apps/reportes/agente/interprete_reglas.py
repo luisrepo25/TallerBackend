@@ -60,8 +60,21 @@ def detectar_columnas_solicitadas(texto_norm: str) -> list[str] | None:
     return encontradas or None
 
 
+def _extraer_distrito_de_pregunta(t: str) -> str | None:
+    if "industrial" in t:
+        return "industrial"
+    for alias in r.SINONIMOS_DISTRITO:
+        if alias in t:
+            return alias
+    m = re.search(r"\b(?:distrito|dm|d)[\s\-]*(?:urbano\s+|municipal\s+)?(\d{1,2})\b", t)
+    if m:
+        return m.group(1)
+    return None
+
+
 def interpretar_pregunta(pregunta: str) -> tuple[str, dict, list[str] | None, str]:
     t = r.normalizar(pregunta)
+    distrito_extraido = _extraer_distrito_de_pregunta(t)
 
     # 1. Distritos / Comparativa territorial
     if any(
@@ -85,19 +98,26 @@ def interpretar_pregunta(pregunta: str) -> tuple[str, dict, list[str] | None, st
             "Resumen y Clasificación de Riesgo por Distritos Municipales",
         )
 
-    # 2. Hidrantes y cobertura
-    if any(k in t for k in ("hidrante", "grifo", "acople", "red hidraulica")):
+    # 2. Hidrantes y cobertura (excepto cuando consulta predios sin cobertura de hidrantes)
+    es_predios_sin_cobertura = "predio" in t and any(
+        k in t for k in ("sin cobertura", "sin hidrante", "lejos de hidrante", "desprotegido")
+    )
+    if (
+        any(k in t for k in ("hidrante", "grifo", "acople", "red hidraulica"))
+        and not es_predios_sin_cobertura
+    ):
         params = {}
         if "fuera de servicio" in t or "inoperativo" in t:
             params["estado_operativo"] = "fuera_de_servicio"
         elif "activo" in t or "operativo" in t:
             params["estado_operativo"] = "activo"
-        try:
-            d = r.resolver_distrito(t)
-            if d:
-                params["distrito"] = d.nombre
-        except Exception:
-            pass
+        if distrito_extraido:
+            try:
+                d = r.resolver_distrito(distrito_extraido)
+                if d:
+                    params["distrito"] = d.nombre
+            except Exception:
+                pass
         cols = detectar_columnas_solicitadas(t)
         return "consultar_hidrantes", params, cols, "Estado Operativo de la Red de Hidrantes"
 
@@ -163,14 +183,18 @@ def interpretar_pregunta(pregunta: str) -> tuple[str, dict, list[str] | None, st
             params["sin_inspeccion"] = True
         if "reinciden" in t:
             params["con_reincidencias"] = True
-        if "desprotegido" in t or "lejos de hidrante" in t:
+        if any(
+            k in t
+            for k in ("desprotegido", "lejos de hidrante", "sin cobertura", "sin hidrante")
+        ):
             params["distancia_hidrante_minima"] = 150.0
-        try:
-            d = r.resolver_distrito(t)
-            if d:
-                params["distrito"] = d.nombre
-        except Exception:
-            pass
+        if distrito_extraido:
+            try:
+                d = r.resolver_distrito(distrito_extraido)
+                if d:
+                    params["distrito"] = d.nombre
+            except Exception:
+                pass
         try:
             tp = r.resolver_tipo_predio(t)
             if tp:
@@ -196,12 +220,13 @@ def interpretar_pregunta(pregunta: str) -> tuple[str, dict, list[str] | None, st
     if "extintor vencido" in t or "sin extintor" in t:
         params["estado_extintores"] = "Vencido"
 
-    try:
-        d = r.resolver_distrito(t)
-        if d:
-            params["distrito"] = d.nombre
-    except Exception:
-        pass
+    if distrito_extraido:
+        try:
+            d = r.resolver_distrito(distrito_extraido)
+            if d:
+                params["distrito"] = d.nombre
+        except Exception:
+            pass
     try:
         tp = r.resolver_tipo_predio(t)
         if tp:

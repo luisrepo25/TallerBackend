@@ -192,12 +192,29 @@ def calcular_kpis(columnas: list[dict], filas: list[dict]) -> list[dict]:
     if "criticos" in claves_presentes:
         total_crit = sum(f.get("criticos", 0) for f in filas)
         kpis.append({"etiqueta": "Predios Críticos", "valor": str(total_crit), "tipo": "alerta"})
+    elif "actas_criticas" in claves_presentes:
+        total_crit = sum(f.get("actas_criticas", 0) for f in filas)
+        kpis.append({"etiqueta": "Actas Críticas", "valor": str(total_crit), "tipo": "alerta"})
     elif "cluster_riesgo" in claves_presentes:
         criticos = sum(1 for f in filas if f.get("cluster_riesgo") == "Critico")
         kpis.append({"etiqueta": "Predios Críticos", "valor": str(criticos), "tipo": "alerta"})
 
+    if "actas_cerradas" in claves_presentes:
+        total_actas = sum(f.get("actas_cerradas", 0) for f in filas)
+        kpis.append({"etiqueta": "Actas Cerradas", "valor": str(total_actas), "tipo": "conteo"})
+
     if "scoring_riesgo" in claves_presentes:
         vals = [f["scoring_riesgo"] for f in filas if f.get("scoring_riesgo") is not None]
+        if vals:
+            kpis.append(
+                {
+                    "etiqueta": "Scoring Promedio",
+                    "valor": f"{sum(vals) / len(vals):.1f} pts",
+                    "tipo": "promedio",
+                }
+            )
+    elif "scoring_promedio" in claves_presentes:
+        vals = [f["scoring_promedio"] for f in filas if f.get("scoring_promedio") is not None]
         if vals:
             kpis.append(
                 {
@@ -217,10 +234,53 @@ def calcular_kpis(columnas: list[dict], filas: list[dict]) -> list[dict]:
                     "tipo": "promedio",
                 }
             )
+    elif "carga_fuego_promedio" in claves_presentes:
+        vals = [
+            f["carga_fuego_promedio"] for f in filas if f.get("carga_fuego_promedio") is not None
+        ]
+        if vals:
+            kpis.append(
+                {
+                    "etiqueta": "Carga de Fuego Prom.",
+                    "valor": f"{sum(vals) / len(vals):.1f} MJ/m²",
+                    "tipo": "promedio",
+                }
+            )
 
     if "reincidencias" in claves_presentes:
         total_reinc = sum(f.get("reincidencias", 0) for f in filas)
-        kpis.append({"etiqueta": "Reincidencias", "valor": str(total_reinc), "tipo": "atencion"})
+        kpis.append({"etiqueta": "Reincidencias", "valor": str(total_reinc), "tipo": "alerta"})
+    elif "es_reincidencia" in claves_presentes:
+        total_reinc = sum(1 for f in filas if f.get("es_reincidencia"))
+        kpis.append({"etiqueta": "Reincidencias", "valor": str(total_reinc), "tipo": "alerta"})
+
+    if "severidad" in claves_presentes:
+        vals = [f["severidad"] for f in filas if f.get("severidad") is not None]
+        if vals:
+            kpis.append(
+                {
+                    "etiqueta": "Severidad Promedio",
+                    "valor": f"{sum(vals) / len(vals):.2f}",
+                    "tipo": "promedio",
+                }
+            )
+
+    if "estado_operativo" in claves_presentes:
+        activos = sum(1 for f in filas if f.get("estado_operativo") == "activo")
+        inoperativos = total_registros - activos
+        kpis.append({"etiqueta": "Hidrantes Activos", "valor": str(activos), "tipo": "progreso"})
+        kpis.append({"etiqueta": "Fuera de Servicio", "valor": str(inoperativos), "tipo": "alerta"})
+
+    if "presion_nominal" in claves_presentes:
+        vals = [f["presion_nominal"] for f in filas if f.get("presion_nominal") is not None]
+        if vals:
+            kpis.append(
+                {
+                    "etiqueta": "Presión Promedio",
+                    "valor": f"{sum(vals) / len(vals):.1f} bar",
+                    "tipo": "promedio",
+                }
+            )
 
     if "avance_pct" in claves_presentes:
         vals = [f["avance_pct"] for f in filas if f.get("avance_pct") is not None]

@@ -95,3 +95,24 @@ class AgenteReportesTests(TestCase):
         self.assertEqual(resp2.status_code, status.HTTP_200_OK)
         id2 = resp2.json()["id"]
         self.assertEqual(id1, id2)
+
+    def test_interprete_reglas_sin_falsos_positivos_y_cobertura_hidrantes(self):
+        from apps.reportes.agente import interprete_reglas
+
+        # 'Predios sin cobertura de hidrantes' debe usar consultar_predios con distancia_hidrante_minima
+        h1, p1, _, _ = interprete_reglas.interpretar_pregunta("Predios sin cobertura de hidrantes")
+        self.assertEqual(h1, "consultar_predios")
+        self.assertEqual(p1.get("distancia_hidrante_minima"), 150.0)
+
+        # Un numero suelto como 'Top 5 predios' no debe filtrarse como Distrito 5
+        h2, p2, _, _ = interprete_reglas.interpretar_pregunta("Top 5 predios con riesgo critico")
+        self.assertEqual(h2, "consultar_predios")
+        self.assertNotIn("distrito", p2)
+        self.assertEqual(p2.get("cluster_riesgo"), "Critico")
+
+        # 'Distrito 10' explícito sí debe extraer distrito
+        h3, p3, _, _ = interprete_reglas.interpretar_pregunta(
+            "Inspecciones críticas en Distrito 10"
+        )
+        self.assertEqual(h3, "consultar_inspecciones")
+        self.assertIn("10", p3.get("distrito", ""))

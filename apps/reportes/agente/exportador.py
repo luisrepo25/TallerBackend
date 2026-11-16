@@ -158,44 +158,52 @@ def exportar_pdf(reporte: dict, columnas_seleccionadas: list[str] | None = None)
         )
 
     # Tabla de datos
-    encabezados = [Paragraph(f"<b>{c['etiqueta']}</b>", style_th) for c in columnas]
-    data_tabla = [encabezados]
+    if columnas and filas:
+        encabezados = [Paragraph(f"<b>{c['etiqueta']}</b>", style_th) for c in columnas]
+        data_tabla = [encabezados]
 
-    for f in filas[:150]:  # Limite para el PDF
-        fila_celdas = []
-        for c in columnas:
-            val = f.get(c["clave"])
-            if val is None:
-                val_str = "—"
-            elif isinstance(val, bool):
-                val_str = "Sí" if val else "No"
-            elif c["clave"] == "estado" and isinstance(val, str):
-                val_str = val.replace("_", " ").capitalize()
-            elif c.get("tipo") == "porcentaje" and isinstance(val, int | float):
-                val_str = f"{val:.1f}%"
-            else:
-                val_str = str(val)
-            fila_celdas.append(Paragraph(val_str, style_td))
-        data_tabla.append(fila_celdas)
+        for f in filas[:150]:  # Limite para el PDF
+            fila_celdas = []
+            for c in columnas:
+                val = f.get(c["clave"])
+                if val is None:
+                    val_str = "—"
+                elif isinstance(val, bool):
+                    val_str = "Sí" if val else "No"
+                elif c["clave"] in ("estado", "estado_operativo") and isinstance(val, str):
+                    val_str = val.replace("_", " ").capitalize()
+                elif c.get("tipo") == "porcentaje" and isinstance(val, int | float):
+                    val_str = f"{val:.1f}%"
+                else:
+                    val_str = str(val)
+                fila_celdas.append(Paragraph(val_str, style_td))
+            data_tabla.append(fila_celdas)
 
-    ancho_disponible = landscape(A4)[0] - 3.0 * cm
-    col_width = ancho_disponible / max(len(columnas), 1)
+        ancho_disponible = landscape(A4)[0] - 3.0 * cm
+        col_width = ancho_disponible / max(len(columnas), 1)
 
-    t = Table(data_tabla, colWidths=[col_width] * len(columnas), repeatRows=1)
-    t.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), COLOR_FONDO_CABECERA),
-                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("GRID", (0, 0), (-1, -1), 0.5, COLOR_BORDE),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COLOR_ZEBRA]),
-                ("TOPPADDING", (0, 0), (-1, -1), 3),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-            ]
+        t = Table(data_tabla, colWidths=[col_width] * len(columnas), repeatRows=1)
+        t.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), COLOR_FONDO_CABECERA),
+                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, COLOR_BORDE),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COLOR_ZEBRA]),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
+            )
         )
-    )
-    story.append(t)
+        story.append(t)
+    else:
+        story.append(
+            Paragraph(
+                "No se encontraron registros para los criterios consultados.",
+                style_sub,
+            )
+        )
 
     doc.build(story, canvasmaker=NumberedCanvasHorizontal)
     return buffer.getvalue()
@@ -267,7 +275,7 @@ def exportar_excel(reporte: dict, columnas_seleccionadas: list[str] | None = Non
     for f_idx, fila in enumerate(filas, start=fila_inicio_tabla + 1):
         for c_idx, col in enumerate(columnas, start=1):
             val = fila.get(col["clave"])
-            if col["clave"] == "estado" and isinstance(val, str):
+            if col["clave"] in ("estado", "estado_operativo") and isinstance(val, str):
                 val = val.replace("_", " ").capitalize()
             cell = ws.cell(row=f_idx, column=c_idx, value=val)
             cell.border = border_thin
@@ -295,9 +303,12 @@ def exportar_excel(reporte: dict, columnas_seleccionadas: list[str] | None = Non
             max_len = max(max_len, len(val_str))
         ws.column_dimensions[col_letter].width = max(min(max_len + 3, 50), 12)
 
-    ws.freeze_panes = f"A{fila_inicio_tabla + 1}"
-    ultima_col_letra = get_column_letter(len(columnas))
-    ws.auto_filter.ref = f"A{fila_inicio_tabla}:{ultima_col_letra}{fila_inicio_tabla + len(filas)}"
+    if columnas:
+        ws.freeze_panes = f"A{fila_inicio_tabla + 1}"
+        ultima_col_letra = get_column_letter(len(columnas))
+        ws.auto_filter.ref = (
+            f"A{fila_inicio_tabla}:{ultima_col_letra}{fila_inicio_tabla + len(filas)}"
+        )
 
     # Hoja 2 con grafico si aplica
     grafico_info = tabla.autodetectar_grafico(columnas, filas)
@@ -351,25 +362,26 @@ def exportar_txt(reporte: dict, columnas_seleccionadas: list[str] | None = None)
     if reporte.get("respuesta_nl"):
         lineas.extend(["SÍNTESIS EJECUTIVA:", reporte["respuesta_nl"], "", "-" * 85, ""])
 
-    anchos = {c["clave"]: max(len(c["etiqueta"]), 8) for c in columnas}
-    for f in filas[:200]:
-        for c in columnas:
-            val_str = str(f.get(c["clave"], "") or "")
-            anchos[c["clave"]] = min(max(anchos[c["clave"]], len(val_str)), 35)
+    if columnas and filas:
+        anchos = {c["clave"]: max(len(c["etiqueta"]), 8) for c in columnas}
+        for f in filas[:200]:
+            for c in columnas:
+                val_str = str(f.get(c["clave"], "") or "")
+                anchos[c["clave"]] = min(max(anchos[c["clave"]], len(val_str)), 35)
 
-    cabecera = " | ".join(
-        c["etiqueta"][: anchos[c["clave"]]].ljust(anchos[c["clave"]]) for c in columnas
-    )
-    separador = "-+-".join("-" * anchos[c["clave"]] for c in columnas)
-    lineas.append(cabecera)
-    lineas.append(separador)
-
-    for f in filas[:200]:
-        fila_str = " | ".join(
-            str(f.get(c["clave"], "") or "")[: anchos[c["clave"]]].ljust(anchos[c["clave"]])
-            for c in columnas
+        cabecera = " | ".join(
+            c["etiqueta"][: anchos[c["clave"]]].ljust(anchos[c["clave"]]) for c in columnas
         )
-        lineas.append(fila_str)
+        separador = "-+-".join("-" * anchos[c["clave"]] for c in columnas)
+        lineas.append(cabecera)
+        lineas.append(separador)
+
+        for f in filas[:200]:
+            fila_str = " | ".join(
+                str(f.get(c["clave"], "") or "")[: anchos[c["clave"]]].ljust(anchos[c["clave"]])
+                for c in columnas
+            )
+            lineas.append(fila_str)
 
     lineas.extend(["", f"Total de registros exportados: {len(filas)}", "", AVISO_LEGAL, "=" * 85])
     return "\n".join(lineas)
@@ -389,7 +401,8 @@ def exportar_csv(reporte: dict, columnas_seleccionadas: list[str] | None = None)
     output = io.StringIO()
     writer = csv.writer(output, dialect="excel")
 
-    writer.writerow([c["etiqueta"] for c in columnas])
+    if columnas:
+        writer.writerow([c["etiqueta"] for c in columnas])
 
     for fila in filas:
         valores_fila = []
@@ -399,7 +412,7 @@ def exportar_csv(reporte: dict, columnas_seleccionadas: list[str] | None = None)
                 val = ""
             elif isinstance(val, bool):
                 val = "Sí" if val else "No"
-            elif col["clave"] == "estado" and isinstance(val, str):
+            elif col["clave"] in ("estado", "estado_operativo") and isinstance(val, str):
                 val = val.replace("_", " ").capitalize()
             valores_fila.append(val)
         writer.writerow(valores_fila)
