@@ -4,6 +4,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from .aviso import agregar_aviso_excel
+
 # Paleta institucional UUBR
 COLOR_MARINO = "14213D"
 COLOR_MARINO_SEC = "1F3357"
@@ -307,6 +309,7 @@ def generar_excel_ejecutivo(datos: dict) -> bytes:
 
     _autoajustar_columnas(ws_detalle)
 
+    agregar_aviso_excel(wb)
     buffer = io.BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
@@ -492,6 +495,7 @@ def generar_excel_dictamen(datos: dict) -> bytes:
 
     _autoajustar_columnas(ws)
 
+    agregar_aviso_excel(wb)
     buffer = io.BytesIO()
     wb.save(buffer)
     return buffer.getvalue()

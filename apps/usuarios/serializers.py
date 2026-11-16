@@ -2,8 +2,13 @@ from rest_framework import serializers
 
 # Serializers explicitos de esta app (capa de presentacion).
 # No usar fields = "__all__".
-from .models import Permiso, Rol, Usuario
-from .services import SUBTIPOS_MODELOS, actualizar_usuario, crear_usuario, obtener_subtipos
+from .models import BitacoraAuditoria, Permiso, Rol, Usuario
+from .services import (
+    SUBTIPOS_MODELOS,
+    actualizar_usuario,
+    crear_usuario,
+    obtener_subtipos,
+)
 
 
 class RolSerializer(serializers.ModelSerializer):
@@ -107,3 +112,42 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
             password=password,
             activo=validated_data.get("activo"),
         )
+
+
+class BitacoraAuditoriaSerializer(serializers.ModelSerializer):
+    """Registro de auditoria. `rol` es el snapshot del rol al momento de la accion."""
+
+    usuario_nombre = serializers.CharField(source="usuario.nombre_completo", read_only=True)
+    usuario_email = serializers.CharField(source="usuario.email", read_only=True)
+    rol = serializers.CharField(source="rol.nombre", read_only=True, default=None)
+
+    class Meta:
+        model = BitacoraAuditoria
+        fields = [
+            "id",
+            "usuario_id",
+            "usuario_nombre",
+            "usuario_email",
+            "rol",
+            "accion",
+            "entidad_afectada",
+            "fecha",
+        ]
+
+
+class BitacoraFiltrosSerializer(serializers.Serializer):
+    """Valida los parametros de consulta de la bitacora (400 con detalle por campo)."""
+
+    usuario_id = serializers.IntegerField(required=False, min_value=1)
+    accion = serializers.CharField(required=False, max_length=150)
+    desde = serializers.DateField(required=False)
+    hasta = serializers.DateField(required=False)
+    limite = serializers.IntegerField(required=False, min_value=1)
+
+    def validate(self, datos):
+        desde, hasta = datos.get("desde"), datos.get("hasta")
+        if desde and hasta and desde > hasta:
+            raise serializers.ValidationError(
+                {"hasta": "Debe ser igual o posterior a la fecha inicial."}
+            )
+        return datos

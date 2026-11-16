@@ -150,7 +150,7 @@ def _ejecutar_ciclo_llm(pregunta: str) -> dict:
     kpis = tabla.calcular_kpis(columnas_visibles, filas)
 
     titulos_map = {
-        "consultar_inspecciones": "Inspecciones Técnicas y Evaluación Pericial",
+        "consultar_inspecciones": "Inspecciones Técnicas y Evaluación de Riesgo",
         "consultar_predios": "Catastro de Predios y Niveles de Riesgo",
         "resumen_distritos": "Resumen y Clasificación de Riesgo por Distritos Municipales",
         "consultar_infracciones": "Registro y Análisis de Infracciones Técnicas",

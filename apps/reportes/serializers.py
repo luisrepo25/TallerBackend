@@ -51,7 +51,7 @@ class GenerarReporteInputSerializer(serializers.Serializer):
 class GenerarReporteDinamicoInputSerializer(serializers.Serializer):
     pregunta = serializers.CharField(
         max_length=1000,
-        help_text="Pregunta, instrucción pericial o filtros en lenguaje natural (ej: 'Predios en riesgo Crítico en el Parque Industrial').",
+        help_text="Pregunta, instrucción o filtros en lenguaje natural (ej: 'Predios en riesgo Crítico en el Parque Industrial').",
     )
 
 

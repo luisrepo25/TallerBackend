@@ -103,3 +103,34 @@ def registrar_bitacora(*, usuario, accion, entidad_afectada=None):
         accion=accion,
         entidad_afectada=entidad_afectada,
     )
+
+
+LIMITE_BITACORA = 200
+LIMITE_BITACORA_MAXIMO = 1000
+
+
+def listar_bitacora(
+    *, usuario_id=None, accion=None, desde=None, hasta=None, limite=LIMITE_BITACORA
+):
+    """Registros de auditoria mas recientes primero, con filtros opcionales.
+
+    La bitacora solo crece, asi que se acota con `limite` (tope LIMITE_BITACORA_MAXIMO)
+    en vez de devolver todo. Las fechas se comparan en UTC (zona horaria del proyecto).
+    """
+    registros = BitacoraAuditoria.objects.select_related("usuario", "rol").order_by("-fecha", "-id")
+    if usuario_id:
+        registros = registros.filter(usuario_id=usuario_id)
+    if accion:
+        registros = registros.filter(accion=accion)
+    if desde:
+        registros = registros.filter(fecha__date__gte=desde)
+    if hasta:
+        registros = registros.filter(fecha__date__lte=hasta)
+    return registros[: max(1, min(limite, LIMITE_BITACORA_MAXIMO))]
+
+
+def listar_acciones_bitacora():
+    """Acciones distintas ya registradas, para poblar el filtro de la pantalla."""
+    return list(
+        BitacoraAuditoria.objects.order_by("accion").values_list("accion", flat=True).distinct()
+    )

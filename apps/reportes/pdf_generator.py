@@ -15,6 +15,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from .aviso import AVISO_LEGAL
+
 # Paleta institucional
 COLOR_MARINO = colors.HexColor("#14213D")
 COLOR_MARINO_SEC = colors.HexColor("#1F3357")
@@ -71,6 +73,10 @@ class NumberedCanvas(canvas.Canvas):
         self.setStrokeColor(COLOR_BORDE)
         self.setLineWidth(0.5)
         self.line(1.8 * cm, 1.5 * cm, width - 1.8 * cm, 1.5 * cm)
+
+        self.setFont("Helvetica-Oblique", 6.5)
+        self.setFillColor(COLOR_TEXTO_SEC)
+        self.drawCentredString(width / 2, 1.7 * cm, AVISO_LEGAL)
 
         self.setFont("Helvetica-Bold", 8)
         self.setFillColor(COLOR_ROJO)

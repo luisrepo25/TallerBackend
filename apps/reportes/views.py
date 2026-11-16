@@ -117,7 +117,7 @@ class AgenteReporteView(APIView):
     """Agente de Reportes Dinámico con IA (Fase 6 extendido / F7).
 
     Recibe preguntas en lenguaje natural (por voz, texto o filtros visuales),
-    ejecuta consultas parametrizadas, detecta gráficos y genera síntesis pericial.
+    ejecuta consultas parametrizadas, detecta gráficos y genera una síntesis del resultado.
     """
 
     permission_classes = [IsAuthenticated, ReportesPermission]
