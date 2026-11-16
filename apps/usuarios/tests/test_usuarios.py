@@ -223,3 +223,36 @@ class ConsultasPorPeticionTests(TestCase):
             respuesta = cliente.get(reverse("usuarios:rol-list"))
 
         self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class ActualizarUsuarioTests(TestCase):
+    def setUp(self):
+        self.admin = crear_usuario(
+            nombre_completo="Admin Principal",
+            email="admin.princ@uubr.org.bo",
+            password="claveSegura123",
+            rol=Rol.objects.get(nombre="Administrador"),
+            subtipo="administrador",
+        )
+        self.inspector = crear_usuario(
+            nombre_completo="Inspector Original",
+            email="inspector.orig@uubr.org.bo",
+            password="claveSegura123",
+            rol=Rol.objects.get(nombre="Inspector Tecnico"),
+            subtipo="inspector_tecnico",
+            telefono="71112233",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(self.admin)
+
+    def test_admin_puede_actualizar_telefono_y_nombre(self):
+        url = reverse("usuarios:usuario-detail", args=[self.inspector.id])
+        resp = self.client.patch(
+            url,
+            {"nombre_completo": "Inspector Modificado", "telefono": "75695707"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.inspector.refresh_from_db()
+        self.assertEqual(self.inspector.nombre_completo, "Inspector Modificado")
+        self.assertEqual(self.inspector.telefono, "75695707")

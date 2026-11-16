@@ -321,7 +321,7 @@ CREATE TABLE IF NOT EXISTS clustering_ejecuciones (
 CREATE TABLE IF NOT EXISTS reportes_generados (
     id                  SERIAL PRIMARY KEY,
     tipo                VARCHAR(50) NOT NULL CHECK (tipo IN ('dictamen', 'ejecutivo', 'dinamico')),
-    formato             VARCHAR(10) NOT NULL CHECK (formato IN ('PDF', 'Excel', 'TXT')),
+    formato             VARCHAR(10) NOT NULL CHECK (formato IN ('PDF', 'Excel', 'TXT', 'CSV')),
     generado_por        INTEGER NOT NULL REFERENCES usuarios(id),
     fecha_generacion    TIMESTAMP NOT NULL DEFAULT NOW(),
     parametros          JSONB
@@ -467,13 +467,13 @@ ALTER TABLE bitacora_auditoria              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);
 
 -- 2026-11-12: Agente de Reportes. Las exportaciones de reportes dinamicos se auditan en
--- reportes_generados con tipo 'dinamico' y admiten formato 'TXT'.
+-- reportes_generados con tipo 'dinamico' y admiten formato 'TXT' y 'CSV'.
 ALTER TABLE reportes_generados DROP CONSTRAINT IF EXISTS reportes_generados_tipo_check;
 ALTER TABLE reportes_generados ADD CONSTRAINT reportes_generados_tipo_check
     CHECK (tipo IN ('dictamen', 'ejecutivo', 'dinamico'));
 ALTER TABLE reportes_generados DROP CONSTRAINT IF EXISTS reportes_generados_formato_check;
 ALTER TABLE reportes_generados ADD CONSTRAINT reportes_generados_formato_check
-    CHECK (formato IN ('PDF', 'Excel', 'TXT'));
+    CHECK (formato IN ('PDF', 'Excel', 'TXT', 'CSV'));
 
 -- ============================================================
 -- EJEMPLOS DE USO

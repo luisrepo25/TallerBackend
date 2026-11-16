@@ -72,6 +72,12 @@ class AgenteReportesTests(TestCase):
         self.assertEqual(resp_txt.status_code, status.HTTP_200_OK)
         self.assertIn("text/plain", resp_txt["Content-Type"])
 
+        # Probar exportacion CSV
+        resp_csv = self.client.get(f"/api/reportes/agente/{reporte_id}/exportar/?formato=CSV")
+        self.assertEqual(resp_csv.status_code, status.HTTP_200_OK)
+        self.assertIn("text/csv", resp_csv["Content-Type"])
+        self.assertTrue(len(resp_csv.content) > 0)
+
     def test_agente_idempotencia(self):
         self.client.force_authenticate(user=self.admin)
         key = "idem-test-12345"

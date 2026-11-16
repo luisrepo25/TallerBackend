@@ -456,8 +456,15 @@ def exportar_reporte_dinamico(
         contenido = agente_exportador.exportar_txt(reporte_dict, columnas).encode("utf-8")
         content_type = "text/plain; charset=utf-8"
         filename = f"reporte_dinamico_{slug_titulo}_{timestamp}.txt"
+    elif f_upper == "CSV":
+        formato_db = ReporteGenerado.FORMATO_CSV
+        contenido = agente_exportador.exportar_csv(reporte_dict, columnas)
+        content_type = "text/csv; charset=utf-8"
+        filename = f"reporte_dinamico_{slug_titulo}_{timestamp}.csv"
     else:
-        raise ReportesError(f"Formato no soportado: {formato}. Opciones válidas: PDF, Excel, TXT.")
+        raise ReportesError(
+            f"Formato no soportado: {formato}. Opciones válidas: PDF, Excel, TXT, CSV."
+        )
 
     reporte_audit = ReporteGenerado.objects.create(
         tipo=ReporteGenerado.TIPO_DINAMICO,

@@ -13,6 +13,7 @@ from .serializers import (
     RolSerializer,
     UsuarioCreateSerializer,
     UsuarioSerializer,
+    UsuarioUpdateSerializer,
 )
 
 
@@ -48,4 +49,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return UsuarioCreateSerializer
+        if self.action in ("update", "partial_update"):
+            return UsuarioUpdateSerializer
         return UsuarioSerializer

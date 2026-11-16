@@ -41,6 +41,48 @@ _RELACION_SUBTIPO = {
     "oficial_mando": "oficialmando",
 }
 
+_SUBTIPO_POR_ROL = {
+    "Administrador": "administrador",
+    "Oficial de Mando": "oficial_mando",
+    "Inspector Tecnico": "inspector_tecnico",
+}
+
+
+@transaction.atomic
+def actualizar_usuario(
+    *,
+    usuario: Usuario,
+    nombre_completo=None,
+    email=None,
+    telefono=None,
+    rol=None,
+    password=None,
+    activo=None,
+):
+    """Actualiza datos de un Usuario y mantiene sincronizados sus subtipos."""
+    if nombre_completo is not None:
+        usuario.nombre_completo = nombre_completo
+    if email is not None:
+        usuario.email = email
+    if telefono is not None:
+        usuario.telefono = (
+            telefono.strip() if isinstance(telefono, str) and telefono.strip() else None
+        )
+    if password:
+        usuario.set_password(password)
+    if activo is not None:
+        usuario.activo = activo
+
+    if rol is not None:
+        usuario.rol = rol
+        subtipo_clave = _SUBTIPO_POR_ROL.get(rol.nombre)
+        if subtipo_clave and not hasattr(usuario, _RELACION_SUBTIPO[subtipo_clave]):
+            modelo_subtipo = SUBTIPOS_MODELOS[subtipo_clave]
+            modelo_subtipo.objects.create(usuario=usuario)
+
+    usuario.save()
+    return usuario
+
 
 def obtener_subtipos(usuario):
     """Claves de SUBTIPOS_MODELOS a las que pertenece el usuario (pueden ser varias).

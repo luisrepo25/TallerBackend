@@ -57,9 +57,9 @@ class GenerarReporteDinamicoInputSerializer(serializers.Serializer):
 
 class ExportarReporteDinamicoQuerySerializer(serializers.Serializer):
     formato = serializers.ChoiceField(
-        choices=["PDF", "Excel", "TXT", "pdf", "excel", "txt", "xlsx"],
+        choices=["PDF", "Excel", "TXT", "CSV", "pdf", "excel", "txt", "csv", "xlsx"],
         default="PDF",
-        help_text="Formato de exportación (PDF, Excel o TXT)",
+        help_text="Formato de exportación (PDF, Excel, TXT o CSV)",
     )
     columnas = serializers.CharField(
         required=False,

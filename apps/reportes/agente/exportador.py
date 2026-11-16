@@ -1,6 +1,7 @@
-# Exportador dinamico en PDF, Excel (.xlsx) y TXT para el Agente de Reportes.
+# Exportador dinamico en PDF, Excel (.xlsx), TXT y CSV para el Agente de Reportes.
 # Respeta la seleccion de columnas interactiva del usuario y genera graficos integrados.
 
+import csv
 import io
 from datetime import datetime
 
@@ -366,3 +367,35 @@ def exportar_txt(reporte: dict, columnas_seleccionadas: list[str] | None = None)
 
     lineas.extend(["", f"Total de registros exportados: {len(filas)}", "=" * 85])
     return "\n".join(lineas)
+
+
+def exportar_csv(reporte: dict, columnas_seleccionadas: list[str] | None = None) -> bytes:
+    """Exporta el reporte en formato CSV tabular.
+
+    Usa codificación UTF-8 con BOM (utf-8-sig) para máxima compatibilidad con
+    Microsoft Excel y LibreOffice en Windows y entornos de habla hispana.
+    """
+    columnas, _ = tabla.conformar_columnas(
+        reporte["filas"], columnas_seleccionadas or [c["clave"] for c in reporte["columnas"]]
+    )
+    filas = reporte["filas"]
+
+    output = io.StringIO()
+    writer = csv.writer(output, dialect="excel")
+
+    writer.writerow([c["etiqueta"] for c in columnas])
+
+    for fila in filas:
+        valores_fila = []
+        for col in columnas:
+            val = fila.get(col["clave"])
+            if val is None:
+                val = ""
+            elif isinstance(val, bool):
+                val = "Sí" if val else "No"
+            elif col["clave"] == "estado" and isinstance(val, str):
+                val = val.replace("_", " ").capitalize()
+            valores_fila.append(val)
+        writer.writerow(valores_fila)
+
+    return output.getvalue().encode("utf-8-sig")

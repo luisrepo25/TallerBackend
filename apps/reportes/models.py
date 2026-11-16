@@ -22,10 +22,12 @@ class ReporteGenerado(models.Model):
     FORMATO_PDF = "PDF"
     FORMATO_EXCEL = "Excel"
     FORMATO_TXT = "TXT"
+    FORMATO_CSV = "CSV"
     FORMATO_CHOICES = [
         (FORMATO_PDF, "PDF"),
         (FORMATO_EXCEL, "Excel"),
         (FORMATO_TXT, "TXT"),
+        (FORMATO_CSV, "CSV"),
     ]
     FORMATO_OFICIAL_CHOICES = [(FORMATO_PDF, "PDF"), (FORMATO_EXCEL, "Excel")]
 

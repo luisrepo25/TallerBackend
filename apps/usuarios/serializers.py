@@ -3,7 +3,7 @@ from rest_framework import serializers
 # Serializers explicitos de esta app (capa de presentacion).
 # No usar fields = "__all__".
 from .models import Permiso, Rol, Usuario
-from .services import SUBTIPOS_MODELOS, crear_usuario, obtener_subtipos
+from .services import SUBTIPOS_MODELOS, actualizar_usuario, crear_usuario, obtener_subtipos
 
 
 class RolSerializer(serializers.ModelSerializer):
@@ -69,4 +69,41 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
             subtipo=validated_data["subtipo"],
             datos_subtipo=validated_data.get("datos_subtipo"),
             telefono=validated_data.get("telefono"),
+        )
+
+
+class UsuarioUpdateSerializer(serializers.ModelSerializer):
+    rol = serializers.PrimaryKeyRelatedField(queryset=Rol.objects.all(), required=False)
+    password = serializers.CharField(
+        write_only=True, min_length=8, required=False, allow_blank=True
+    )
+    telefono = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    class Meta:
+        model = Usuario
+        fields = [
+            "id",
+            "nombre_completo",
+            "email",
+            "telefono",
+            "rol",
+            "password",
+            "activo",
+        ]
+
+    def to_representation(self, instance):
+        return UsuarioSerializer(instance, context=self.context).data
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+        if not password:
+            password = None
+        return actualizar_usuario(
+            usuario=instance,
+            nombre_completo=validated_data.get("nombre_completo"),
+            email=validated_data.get("email"),
+            telefono=validated_data.get("telefono"),
+            rol=validated_data.get("rol"),
+            password=password,
+            activo=validated_data.get("activo"),
         )
