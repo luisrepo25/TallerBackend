@@ -210,7 +210,7 @@ def interpretar_pregunta(pregunta: str) -> tuple[str, dict, list[str] | None, st
         pass
 
     cols = detectar_columnas_solicitadas(t)
-    return "consultar_inspecciones", params, cols, "Inspecciones Técnicas y Evaluación Pericial"
+    return "consultar_inspecciones", params, cols, "Inspecciones Técnicas y Evaluación de Riesgo"
 
 
 def generar_sintesis_reglas(titulo: str, herramienta: str, params: dict, filas: list[dict]) -> str:
@@ -228,7 +228,7 @@ def generar_sintesis_reglas(titulo: str, herramienta: str, params: dict, filas: 
             f"Se evaluaron {total} inspecciones técnicas en Santa Cruz de la Sierra. "
             f"Se identificaron {criticos} predios en nivel de riesgo Crítico con un scoring promedio de {prom_sc} pts. "
             f"Se detectaron fallas eléctricas en {fallas} edificaciones y {rutas} predios con rutas de evacuación obstruidas, "
-            f"lo que demanda notificación pericial inmediata y verificación de cumplimiento conforme a la norma NB 58005."
+            f"lo que demanda notificación inmediata a los responsables y verificación de cumplimiento conforme a la norma NB 58005."
         )
 
     if herramienta == "resumen_distritos":
@@ -238,7 +238,7 @@ def generar_sintesis_reglas(titulo: str, herramienta: str, params: dict, filas: 
         return (
             f"El consolidado territorial abarca los distritos municipales de Santa Cruz de la Sierra, "
             f"acumulando un total de {tot_crit} edificaciones en riesgo Crítico. "
-            f"El distrito con mayor concentración de riesgo pericial es '{top}' con un {pct_top}% de predios críticos. "
+            f"El distrito con mayor concentración de riesgo es '{top}' con un {pct_top}% de predios críticos. "
             f"Se sugiere priorizar este sector para la asignación de nuevas brigadas y campañas de fiscalización preventiva."
         )
 
@@ -259,4 +259,4 @@ def generar_sintesis_reglas(titulo: str, herramienta: str, params: dict, filas: 
             f"los cuales requieren mantenimiento preventivo para asegurar el radio de cobertura ante emergencias."
         )
 
-    return f"Se consolidaron {total} registros operativos correspondientes a '{titulo}', listos para su análisis pericial y exportación oficial."
+    return f"Se consolidaron {total} registros operativos correspondientes a '{titulo}', listos para su análisis y exportación."
