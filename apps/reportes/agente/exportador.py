@@ -15,6 +15,7 @@ from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from ..aviso import AVISO_LEGAL, agregar_aviso_excel
 from . import tabla
 
 # Paleta institucional UUBR
@@ -55,6 +56,10 @@ class NumberedCanvasHorizontal(canvas.Canvas):
         self.setStrokeColor(COLOR_BORDE)
         self.setLineWidth(0.5)
         self.line(1.5 * cm, 1.2 * cm, width - 1.5 * cm, 1.2 * cm)
+
+        self.setFont("Helvetica-Oblique", 6.5)
+        self.setFillColor(COLOR_TEXTO_SEC)
+        self.drawCentredString(width / 2, 1.4 * cm, AVISO_LEGAL)
 
         self.setFont("Helvetica-Bold", 8)
         self.setFillColor(COLOR_ROJO)
@@ -320,6 +325,7 @@ def exportar_excel(reporte: dict, columnas_seleccionadas: list[str] | None = Non
         chart.height = 12
         ws_graf.add_chart(chart, "B2")
 
+    agregar_aviso_excel(wb)
     buffer = io.BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
@@ -364,5 +370,5 @@ def exportar_txt(reporte: dict, columnas_seleccionadas: list[str] | None = None)
         )
         lineas.append(fila_str)
 
-    lineas.extend(["", f"Total de registros exportados: {len(filas)}", "=" * 85])
+    lineas.extend(["", f"Total de registros exportados: {len(filas)}", "", AVISO_LEGAL, "=" * 85])
     return "\n".join(lineas)
