@@ -7,6 +7,7 @@ from django.db import transaction
 
 from apps.fiscalizacion.models import ActaInspeccion
 from apps.fiscalizacion.services import riesgo_extintores
+from apps.usuarios.models import Administrador
 from apps.usuarios.services import registrar_bitacora
 
 from . import cliente_ml
@@ -59,7 +60,25 @@ def construir_payload(filas) -> list[dict]:
     ]
 
 
-def ejecutar_clustering(*, usuario) -> dict:
+class SinAdministrador(Exception):
+    """No hay un Administrador activo al que atribuir la ejecucion automatica."""
+
+
+def administrador_para_ejecucion_automatica():
+    """Administrador activo al que se atribuye la corrida programada (el primero por id).
+    La columna ejecutado_por de clustering_ejecuciones y la bitacora exigen un usuario real."""
+    admin = (
+        Administrador.objects.select_related("usuario")
+        .filter(usuario__activo=True)
+        .order_by("usuario_id")
+        .first()
+    )
+    if admin is None:
+        raise SinAdministrador("No hay un Administrador activo para registrar la ejecucion.")
+    return admin.usuario
+
+
+def ejecutar_clustering(*, usuario, automatico=False) -> dict:
     """RF-17. Envia las actas cerradas al microservicio, guarda el cluster de cada una en
     `ActaInspeccion.cluster_riesgo` y registra la ejecucion.
 
@@ -72,11 +91,11 @@ def ejecutar_clustering(*, usuario) -> dict:
         resultado = cliente_ml.ejecutar_clustering(payload)
     except cliente_ml.ServicioMLRechazo as exc:
         raise AnaliticaConflicto(exc.mensaje) from exc
-    return _guardar_resultado(resultado, usuario)
+    return _guardar_resultado(resultado, usuario, automatico)
 
 
 @transaction.atomic
-def _guardar_resultado(resultado: dict, usuario) -> dict:
+def _guardar_resultado(resultado: dict, usuario, automatico=False) -> dict:
     por_nivel = defaultdict(list)
     for item in resultado["clusters"]:
         if item["cluster_riesgo"] not in NIVELES_VALIDOS:
@@ -93,7 +112,9 @@ def _guardar_resultado(resultado: dict, usuario) -> dict:
     )
     registrar_bitacora(
         usuario=usuario,
-        accion="Ejecutar clustering de riesgo",
+        accion="Ejecutar clustering de riesgo (automatico)"
+        if automatico
+        else "Ejecutar clustering de riesgo",
         entidad_afectada="ClusteringEjecucion",
     )
     return {
