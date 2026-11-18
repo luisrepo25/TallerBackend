@@ -1,9 +1,23 @@
 # Logica de negocio de esta app (capa de servicios).
 # Las vistas delegan aqui: nunca hacen calculos ni orquestacion directo con el ORM.
 
-from django.db import transaction
+import logging
 
-from .models import Administrador, BitacoraAuditoria, InspectorTecnico, OficialMando, Usuario
+from django.db import transaction
+from django.utils import timezone
+
+from apps.common import fcm_cliente
+
+from .models import (
+    Administrador,
+    BitacoraAuditoria,
+    DispositivoNotificacion,
+    InspectorTecnico,
+    OficialMando,
+    Usuario,
+)
+
+logger = logging.getLogger(__name__)
 
 SUBTIPOS_MODELOS = {
     "administrador": Administrador,
@@ -134,3 +148,47 @@ def listar_acciones_bitacora():
     return list(
         BitacoraAuditoria.objects.order_by("accion").values_list("accion", flat=True).distinct()
     )
+
+
+# --- Notificaciones push (dispositivos de la app movil) ---
+
+
+def registrar_dispositivo(*, usuario, token, plataforma="android"):
+    """Idempotente: la app lo llama al iniciar y cuando Firebase renueva el token. El token
+    pertenece a UN usuario: si otra cuenta inicia sesion en el mismo telefono, pasa a ella y
+    la anterior deja de recibir avisos en ese aparato."""
+    dispositivo, _ = DispositivoNotificacion.objects.update_or_create(
+        token=token,
+        defaults={
+            "usuario": usuario,
+            "plataforma": plataforma,
+            "fecha_ultimo_uso": timezone.now(),
+        },
+    )
+    return dispositivo
+
+
+def quitar_dispositivo(*, usuario, token) -> bool:
+    """Al cerrar sesion. Solo borra el token si es del usuario. Devuelve si habia algo."""
+    borrados, _ = DispositivoNotificacion.objects.filter(usuario=usuario, token=token).delete()
+    return borrados > 0
+
+
+def notificar_usuarios(usuarios_ids, *, titulo, cuerpo, datos=None) -> int:
+    """Envia una notificacion push a todos los dispositivos de esos usuarios y devuelve cuantos
+    la recibieron. **Nunca lanza**: una notificacion es un aviso, y su fallo no debe deshacer
+    ni retrasar la accion que la origino. Los tokens que Firebase da por muertos se borran."""
+    if not fcm_cliente.habilitado():
+        return 0
+    enviados = 0
+    for dispositivo in DispositivoNotificacion.objects.filter(usuario_id__in=list(usuarios_ids)):
+        try:
+            fcm_cliente.enviar(dispositivo.token, titulo=titulo, cuerpo=cuerpo, datos=datos)
+            enviados += 1
+        except fcm_cliente.TokenInvalido:
+            dispositivo.delete()
+        except fcm_cliente.FcmError:
+            logger.warning("No se pudo notificar al dispositivo %s", dispositivo.pk)
+        except Exception:  # noqa: BLE001
+            logger.exception("Error inesperado al notificar al dispositivo %s", dispositivo.pk)
+    return enviados

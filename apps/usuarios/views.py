@@ -1,5 +1,5 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, viewsets
+from rest_framework import generics, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,13 +11,21 @@ from .permissions import IsAdministrador
 from .serializers import (
     BitacoraAuditoriaSerializer,
     BitacoraFiltrosSerializer,
+    DispositivoSerializer,
     PermisoSerializer,
+    QuitarDispositivoSerializer,
     RolSerializer,
     UsuarioCreateSerializer,
     UsuarioSerializer,
     UsuarioUpdateSerializer,
 )
-from .services import listar_acciones_bitacora, listar_bitacora, registrar_bitacora
+from .services import (
+    listar_acciones_bitacora,
+    listar_bitacora,
+    quitar_dispositivo,
+    registrar_bitacora,
+    registrar_dispositivo,
+)
 
 
 class PerfilView(APIView):
@@ -28,6 +36,28 @@ class PerfilView(APIView):
     @extend_schema(responses={200: UsuarioSerializer})
     def get(self, request):
         return Response(UsuarioSerializer(request.user).data)
+
+
+class DispositivosView(APIView):
+    """Tokens FCM de la app movil, para avisar al usuario con notificaciones push."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(request=DispositivoSerializer, responses={204: None})
+    def post(self, request):
+        """Registra o renueva el token del telefono (idempotente)."""
+        datos = DispositivoSerializer(data=request.data)
+        datos.is_valid(raise_exception=True)
+        registrar_dispositivo(usuario=request.user, **datos.validated_data)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=QuitarDispositivoSerializer, responses={204: None})
+    def delete(self, request):
+        """Olvida el token del telefono (al cerrar sesion). Sin error si ya no existia."""
+        datos = QuitarDispositivoSerializer(data=request.data)
+        datos.is_valid(raise_exception=True)
+        quitar_dispositivo(usuario=request.user, token=datos.validated_data["token"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class RolViewSet(viewsets.ModelViewSet):

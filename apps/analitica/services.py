@@ -6,7 +6,7 @@ from collections import defaultdict
 from django.db import transaction
 
 from apps.fiscalizacion.models import ActaInspeccion
-from apps.fiscalizacion.services import riesgo_extintores
+from apps.fiscalizacion.services import D_MAX, Q_MAX, riesgo_extintores
 from apps.usuarios.models import Administrador
 from apps.usuarios.services import registrar_bitacora
 
@@ -45,15 +45,21 @@ def actas_para_clustering():
 
 def construir_payload(filas) -> list[dict]:
     """Contrato del microservicio (ver MicroservicioML/README.md). El ML no deriva nada:
-    recibe los valores ya calculados, incluido el riesgo de extintores del scoring."""
+    recibe los valores ya calculados, incluido el riesgo de extintores del scoring.
+
+    La carga de fuego y la distancia al hidrante se recortan a los mismos topes del scoring
+    (Q_MAX y D_MAX): para el scoring cualquier valor por encima es riesgo maximo, y sin el
+    recorte K-Means los trataria como distintos (65 % de los predios estan a mas de 500 m)."""
     return [
         {
             "acta_id": pk,
-            "carga_fuego": float(carga),
+            "carga_fuego": min(float(carga), float(Q_MAX)),
             "riesgo_extintores": float(riesgo_extintores(extintores)),
             "fallas_electricas": fallas,
             "rutas_obstruidas": not rutas_despejadas,
-            "distancia_hidrante_m": None if distancia is None else float(distancia),
+            "distancia_hidrante_m": (
+                None if distancia is None else min(float(distancia), float(D_MAX))
+            ),
             "scoring_riesgo": float(scoring),
         }
         for pk, carga, extintores, fallas, rutas_despejadas, distancia, scoring in filas
@@ -112,9 +118,11 @@ def _guardar_resultado(resultado: dict, usuario, automatico=False) -> dict:
     )
     registrar_bitacora(
         usuario=usuario,
-        accion="Ejecutar clustering de riesgo (automatico)"
-        if automatico
-        else "Ejecutar clustering de riesgo",
+        accion=(
+            "Ejecutar clustering de riesgo (automatico)"
+            if automatico
+            else "Ejecutar clustering de riesgo"
+        ),
         entidad_afectada="ClusteringEjecucion",
     )
     return {

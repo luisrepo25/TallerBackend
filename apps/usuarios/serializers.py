@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 # Serializers explicitos de esta app (capa de presentacion).
 # No usar fields = "__all__".
-from .models import BitacoraAuditoria, Permiso, Rol, Usuario
+from .models import BitacoraAuditoria, DispositivoNotificacion, Permiso, Rol, Usuario
 from .services import (
     SUBTIPOS_MODELOS,
     actualizar_usuario,
@@ -151,3 +151,14 @@ class BitacoraFiltrosSerializer(serializers.Serializer):
                 {"hasta": "Debe ser igual o posterior a la fecha inicial."}
             )
         return datos
+
+
+class DispositivoSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=512)
+    plataforma = serializers.ChoiceField(
+        choices=[valor for valor, _ in DispositivoNotificacion.PLATAFORMAS], default="android"
+    )
+
+
+class QuitarDispositivoSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=512)

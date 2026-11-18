@@ -33,6 +33,7 @@ from .serializers import (
     InfraccionSerializer,
     MaterialItemInputSerializer,
     MaterialRegistradoSerializer,
+    MiActaSerializer,
     RechazarSolicitudMaterialSerializer,
     SolicitudMaterialSerializer,
 )
@@ -42,6 +43,7 @@ from .services import (
     aprobar_solicitud_material,
     cerrar_acta,
     consultar_historial,
+    listar_actas_del_inspector,
     rechazar_solicitud_material,
     registrar_infraccion,
     registrar_materiales,
@@ -179,6 +181,17 @@ class SubirImagenEvidenciaView(APIView):
         except FiscalizacionError as exc:
             return Response({"detail": exc.mensaje}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"url_imagen": url}, status=status.HTTP_201_CREATED)
+
+
+class MisActasView(APIView):
+    """Ultima acta cerrada de cada predio que el inspector autenticado ya inspecciono en sus
+    campanias abiertas. La app movil la descarga para no perder su historial al reinstalarse."""
+
+    permission_classes = [IsInspectorTecnico]
+
+    @extend_schema(responses={200: MiActaSerializer(many=True)})
+    def get(self, request):
+        return Response(MiActaSerializer(listar_actas_del_inspector(request.user), many=True).data)
 
 
 class ActaInspeccionViewSet(BitacoraAuditoriaMixin, viewsets.ModelViewSet):

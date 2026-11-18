@@ -54,6 +54,18 @@ class PayloadTests(BaseAnaliticaTestCase):
             },
         )
 
+    def test_recorta_carga_y_distancia_a_los_topes_del_scoring(self):
+        acta = self.crear_acta(carga="1198.60", distancia_hidrante_m=Decimal("11142.00"))
+        payload = self.payload_de(acta)
+        self.assertEqual(payload["carga_fuego"], 1000.0)
+        self.assertEqual(payload["distancia_hidrante_m"], 500.0)
+
+    def test_valores_por_debajo_del_tope_no_se_tocan(self):
+        acta = self.crear_acta(carga="999.99", distancia_hidrante_m=Decimal("499.99"))
+        payload = self.payload_de(acta)
+        self.assertEqual(payload["carga_fuego"], 999.99)
+        self.assertEqual(payload["distancia_hidrante_m"], 499.99)
+
     def test_sin_hidrante_envia_null_y_no_posee_vale_uno(self):
         acta = self.crear_acta(extintores="No posee")
         payload = self.payload_de(acta)

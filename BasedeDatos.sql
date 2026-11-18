@@ -34,6 +34,8 @@
 --         Administrador los aprueba (2026-10-10).
 --   v10   Tabla distritos: zona de analisis del mapa de calor y de la priorizacion de
 --         campanias, RF-18 y RF-19 (2026-10-13).
+--   v11   Tabla dispositivos_notificacion: tokens FCM de la app movil para avisar al
+--         Inspector cuando se le asigna una campania (2026-11-18).
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS postgis;
@@ -368,6 +370,23 @@ CREATE TABLE IF NOT EXISTS bitacora_auditoria (
 CREATE INDEX IF NOT EXISTS idx_bitacora_usuario ON bitacora_auditoria (usuario_id);
 CREATE INDEX IF NOT EXISTS idx_bitacora_rol ON bitacora_auditoria (rol_id);
 
+-- NOTIFICACIONES PUSH (Firebase Cloud Messaging)
+-- Un token FCM identifica una instalacion de la app movil y pertenece a UN usuario: si otra
+-- cuenta inicia sesion en el mismo telefono, el token pasa a ella (ver usuarios.services).
+-- Un usuario puede tener varios dispositivos.
+
+CREATE TABLE IF NOT EXISTS dispositivos_notificacion (
+    id                SERIAL PRIMARY KEY,
+    usuario_id        INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    token             VARCHAR(512) NOT NULL UNIQUE,
+    plataforma        VARCHAR(20) NOT NULL DEFAULT 'android'
+                      CHECK (plataforma IN ('android', 'ios')),
+    fecha_registro    TIMESTAMP NOT NULL DEFAULT NOW(),
+    fecha_ultimo_uso  TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_dispositivos_usuario ON dispositivos_notificacion (usuario_id);
+
 -- ============================================================
 -- 8. DATOS INICIALES (catalogos)
 -- Cada fila se inserta solo si no existe (por nombre): re-ejecutar el archivo no duplica
@@ -455,6 +474,7 @@ ALTER TABLE clustering_ejecuciones          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reportes_generados              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reportes_dinamicos              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bitacora_auditoria              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dispositivos_notificacion       ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- 10. MIGRACIONES

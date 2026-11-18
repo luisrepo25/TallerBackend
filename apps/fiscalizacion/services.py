@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import models, transaction
@@ -516,3 +517,60 @@ def consultar_historial(
         qs = qs.filter(cerrada=True)
 
     return qs
+
+
+def listar_actas_del_inspector(usuario) -> list[dict]:
+    """Ultima acta cerrada de CADA predio, en cada campania abierta, hecha por este inspector.
+
+    La app movil la usa para saber que predios ya inspecciono despues de reinstalarse, cerrar
+    sesion o cambiar de telefono (su base local solo conoce lo que hizo en ese aparato), y para
+    mostrar la inspeccion anterior como referencia en una reinspeccion. No incluye las
+    campanias cerradas: ya no se pueden inspeccionar."""
+    actas = list(
+        ActaInspeccion.objects.filter(inspector_id=usuario.pk, cerrada=True)
+        .exclude(campania__estado=Campania.ESTADO_CERRADA)
+        .order_by("campania_id", "predio_id", "-fecha_inspeccion", "-pk")
+        .distinct("campania_id", "predio_id")
+    )
+    ids = [a.pk for a in actas]
+
+    materiales = defaultdict(list)
+    for acta_id, material_id, peso in (
+        MaterialRegistrado.objects.filter(acta_id__in=ids)
+        .order_by("pk")
+        .values_list("acta_id", "material_id", "peso_kg")
+    ):
+        materiales[acta_id].append({"material_id": material_id, "peso_kg": peso})
+
+    infracciones = defaultdict(list)
+    for acta_id, tipo_id, descripcion, reincidencia in (
+        Infraccion.objects.filter(acta_id__in=ids)
+        .order_by("pk")
+        .values_list("acta_id", "tipo_infraccion_id", "descripcion", "es_reincidencia")
+    ):
+        infracciones[acta_id].append(
+            {
+                "tipo_infraccion_id": tipo_id,
+                "descripcion": descripcion or "",
+                "es_reincidencia": reincidencia,
+            }
+        )
+
+    return [
+        {
+            "id": a.pk,
+            "uuid_local": a.uuid_local,
+            "predio_id": a.predio_id,
+            "campania_id": a.campania_id,
+            "fecha_inspeccion": a.fecha_inspeccion,
+            "estado_extintores_id": a.estado_extintores_id,
+            "fallas_electricas": a.fallas_electricas,
+            "rutas_evacuacion_despejadas": a.rutas_evacuacion_despejadas,
+            "carga_fuego": a.carga_fuego,
+            "scoring_riesgo": a.scoring_riesgo,
+            "cluster_riesgo": a.cluster_riesgo,
+            "materiales": materiales[a.pk],
+            "infracciones": infracciones[a.pk],
+        }
+        for a in actas
+    ]

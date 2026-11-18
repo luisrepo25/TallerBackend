@@ -273,3 +273,32 @@ class ActaInspeccionCreateSerializer(serializers.ModelSerializer):
             raise
         except FiscalizacionError as exc:
             raise serializers.ValidationError({"detail": str(exc)}) from exc
+
+
+class MaterialDeMiActaSerializer(serializers.Serializer):
+    material_id = serializers.IntegerField()
+    peso_kg = serializers.DecimalField(max_digits=8, decimal_places=2)
+
+
+class InfraccionDeMiActaSerializer(serializers.Serializer):
+    tipo_infraccion_id = serializers.IntegerField()
+    descripcion = serializers.CharField(allow_blank=True)
+    es_reincidencia = serializers.BooleanField()
+
+
+class MiActaSerializer(serializers.Serializer):
+    """Resumen de una acta ya sincronizada, para que la app movil recupere su historial."""
+
+    id = serializers.IntegerField()
+    uuid_local = serializers.UUIDField(allow_null=True)
+    predio_id = serializers.IntegerField()
+    campania_id = serializers.IntegerField()
+    fecha_inspeccion = serializers.DateTimeField()
+    estado_extintores_id = serializers.IntegerField(allow_null=True)
+    fallas_electricas = serializers.BooleanField()
+    rutas_evacuacion_despejadas = serializers.BooleanField()
+    carga_fuego = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    scoring_riesgo = serializers.DecimalField(max_digits=6, decimal_places=2, allow_null=True)
+    cluster_riesgo = serializers.CharField(allow_null=True)
+    materiales = MaterialDeMiActaSerializer(many=True)
+    infracciones = InfraccionDeMiActaSerializer(many=True)

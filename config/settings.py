@@ -28,6 +28,12 @@ ML_SERVICE_URL = env("ML_SERVICE_URL", default="http://localhost:8001")
 ML_API_KEY = env("ML_API_KEY", default="")
 ML_TIMEOUT_SEGUNDOS = env.int("ML_TIMEOUT_SEGUNDOS", default=60)
 
+# Notificaciones push (Firebase Cloud Messaging). FIREBASE_CREDENTIALS_JSON es el contenido
+# del JSON de la cuenta de servicio (en la nube viene de Secret Manager; nunca en git). Vacio =
+# notificaciones desactivadas.
+FIREBASE_CREDENTIALS_JSON = env("FIREBASE_CREDENTIALS_JSON", default="")
+FCM_TIMEOUT_SEGUNDOS = env.int("FCM_TIMEOUT_SEGUNDOS", default=5)
+
 # Agente de Reportes (LLM con tool calling, API compatible con OpenAI: Groq por defecto).
 # Sin GROQ_API_KEY el agente funciona igual con el interprete de reglas (motor "reglas").
 GROQ_API_KEY = env("GROQ_API_KEY", default="")

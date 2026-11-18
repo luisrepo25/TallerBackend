@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from apps.catastro.models import Predio
 from apps.usuarios.models import InspectorTecnico
-from apps.usuarios.services import registrar_bitacora
+from apps.usuarios.services import notificar_usuarios, registrar_bitacora
 
 from .models import Campania, CampaniaFuncionario
 
@@ -136,13 +136,27 @@ def asignar_inspectores(campania: Campania, usuarios_ids: list[int]) -> Campania
     ya_asignados = set(
         CampaniaFuncionario.objects.filter(campania=campania).values_list("usuario_id", flat=True)
     )
-    for usuario_id in sorted(ids - ya_asignados):
+    nuevos = sorted(ids - ya_asignados)
+    for usuario_id in nuevos:
         CampaniaFuncionario.objects.create(campania=campania, usuario_id=usuario_id)
+    if nuevos:
+        # Despues del commit: si la asignacion se deshace, nadie recibe un aviso falso.
+        transaction.on_commit(lambda: _avisar_asignacion(campania, nuevos))
 
     if campania.estado == Campania.ESTADO_PENDIENTE and (ids or ya_asignados):
         campania.estado = Campania.ESTADO_EN_CURSO
         campania.save(update_fields=["estado"])
     return campania
+
+
+def _avisar_asignacion(campania: Campania, usuarios_ids: list[int]) -> None:
+    """Notificacion push a los inspectores recien asignados (no a los que ya lo estaban)."""
+    notificar_usuarios(
+        usuarios_ids,
+        titulo="Nueva campaña asignada",
+        cuerpo=campania.nombre,
+        datos={"tipo": "campania_asignada", "campania_id": campania.pk},
+    )
 
 
 @transaction.atomic

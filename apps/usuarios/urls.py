@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     BitacoraAccionesView,
     BitacoraListView,
+    DispositivosView,
     PerfilView,
     PermisoViewSet,
     RolViewSet,
@@ -19,6 +20,7 @@ router.register("usuarios", UsuarioViewSet, basename="usuario")
 
 urlpatterns = [
     path("me/", PerfilView.as_view(), name="perfil"),
+    path("dispositivos/", DispositivosView.as_view(), name="dispositivos"),
     path("bitacora/", BitacoraListView.as_view(), name="bitacora"),
     path("bitacora/acciones/", BitacoraAccionesView.as_view(), name="bitacora-acciones"),
 ] + router.urls

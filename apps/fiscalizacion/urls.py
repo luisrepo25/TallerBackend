@@ -7,6 +7,7 @@ from .views import (
     CatalogoEstadoExtintorViewSet,
     CatalogoInfraccionViewSet,
     CatalogoMaterialCombustibleViewSet,
+    MisActasView,
     SolicitudMaterialViewSet,
     SubirImagenEvidenciaView,
 )
@@ -39,6 +40,8 @@ router.register(
 urlpatterns = [
     # La app movil envia aqui las actas hechas sin conexion (un lote por llamada)
     path("sync/actas/", SincronizarActasView.as_view(), name="sync-actas"),
+    # Historial del propio inspector: lo ya inspeccionado, para recuperarlo en un telefono nuevo
+    path("mis-actas/", MisActasView.as_view(), name="mis-actas"),
     # ...y sube antes cada foto de evidencia (devuelve la URL que va dentro del acta)
     path("evidencias/subir/", SubirImagenEvidenciaView.as_view(), name="subir-evidencia"),
 ] + router.urls

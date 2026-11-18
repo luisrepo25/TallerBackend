@@ -117,6 +117,27 @@ class OficialMando(models.Model):
         db_table = "oficiales_mando"
 
 
+class DispositivoNotificacion(models.Model):
+    """Instalacion de la app movil que puede recibir notificaciones push (token FCM)."""
+
+    PLATAFORMAS = [("android", "Android"), ("ios", "iOS")]
+
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        db_column="usuario_id",
+        related_name="dispositivos",
+    )
+    token = models.CharField(max_length=512, unique=True)
+    plataforma = models.CharField(max_length=20, choices=PLATAFORMAS, default="android")
+    fecha_registro = UtcDateTimeField(auto_now_add=True)
+    fecha_ultimo_uso = UtcDateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = "dispositivos_notificacion"
+
+
 class BitacoraAuditoria(models.Model):
     usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT, db_column="usuario_id")
     rol = models.ForeignKey(
