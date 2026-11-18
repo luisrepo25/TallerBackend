@@ -42,6 +42,19 @@ class MapaCalorTests(BaseAnaliticaTestCase):
         self.crear_acta(cerrada=False)
         self.assertEqual(self.punto_de(self.predio), [])
 
+    def test_el_punto_trae_el_distrito_que_lo_contiene(self):
+        distrito = self.crear_distrito("Norte")
+        predio = self.predio_en(0, 0, desplazamiento=0.01)
+        self.crear_acta(predio=predio, scoring="50.00", cluster_riesgo="Medio")
+        punto = self.punto_de(predio)[0]
+        self.assertEqual(punto["distrito_id"], distrito.pk)
+
+    def test_punto_fuera_de_todo_distrito_trae_distrito_nulo(self):
+        # Zona despoblada de los tests (lon -63.0, lat -20.0): ningun distrito real la cubre.
+        predio = self.predio_en(0, 0)
+        self.crear_acta(predio=predio)
+        self.assertIsNone(self.punto_de(predio)[0]["distrito_id"])
+
     def test_filtra_por_cluster(self):
         self.crear_acta(scoring="90.00", cluster_riesgo="Critico")
         criticos = zonificacion.mapa_calor(cluster="Critico")

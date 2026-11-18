@@ -39,6 +39,9 @@ class PuntoCalorSerializer(serializers.Serializer):
     scoring_riesgo = serializers.DecimalField(max_digits=6, decimal_places=2)
     cluster_riesgo = serializers.CharField(allow_null=True)
     intensidad = serializers.FloatField(help_text="scoring/100: peso del punto en el mapa de calor")
+    distrito_id = serializers.IntegerField(
+        allow_null=True, help_text="Distrito que contiene el centroide del predio (null si ninguno)"
+    )
 
 
 class ConteoClustersSerializer(serializers.Serializer):

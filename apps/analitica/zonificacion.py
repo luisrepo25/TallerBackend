@@ -55,14 +55,18 @@ def _distrito_de(campo_centroide):
 
 def mapa_calor(*, cluster=None, campania_id=None) -> list[dict]:
     """RF-18. Un punto por predio inspeccionado: centroide + scoring (intensidad 0 a 1)."""
-    actas = ultimas_actas_cerradas().annotate(centro=Centroid("predio__geom"))
+    actas = (
+        ultimas_actas_cerradas()
+        .annotate(centro=Centroid("predio__geom"))
+        .annotate(distrito_id=_distrito_de("centro"))
+    )
     if cluster:
         actas = actas.filter(cluster_riesgo=cluster)
     if campania_id:
         actas = actas.filter(campania_id=campania_id)
 
     filas = actas.order_by("predio_id").values_list(
-        "predio_id", "predio__nombre", "centro", "scoring_riesgo", "cluster_riesgo"
+        "predio_id", "predio__nombre", "centro", "scoring_riesgo", "cluster_riesgo", "distrito_id"
     )
     return [
         {
@@ -73,8 +77,9 @@ def mapa_calor(*, cluster=None, campania_id=None) -> list[dict]:
             "scoring_riesgo": scoring,
             "cluster_riesgo": cluster_riesgo,
             "intensidad": round(float(scoring) / 100, 4),
+            "distrito_id": distrito_id,
         }
-        for predio_id, nombre, centro, scoring, cluster_riesgo in filas
+        for predio_id, nombre, centro, scoring, cluster_riesgo, distrito_id in filas
     ]
 
 
