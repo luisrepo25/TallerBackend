@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from apps.campanias.models import Campania
 from apps.catastro.models import Predio
+from apps.usuarios.services import registrar_bitacora
 
 from .models import (
     ActaInspeccion,
@@ -188,6 +189,24 @@ def _resultado_existente(acta, inspector):
     return _resultado(acta, YA_SINCRONIZADA)
 
 
+def _registrar_lote_en_bitacora(resultados, usuario):
+    """RF-3: una entrada por lote (no por acta) con lo que el servidor acepto y rechazo.
+    Los reintentos que solo devuelven actas ya sincronizadas no dejan rastro nuevo. Un fallo
+    al escribir la bitacora no debe deshacer ni ocultar las actas ya guardadas."""
+    aceptadas = sum(1 for r in resultados if r["estado"] == SINCRONIZADA)
+    rechazadas = sum(1 for r in resultados if r["estado"] == RECHAZADA)
+    if not (aceptadas or rechazadas):
+        return
+    try:
+        registrar_bitacora(
+            usuario=usuario,
+            accion=f"Sincronizar actas offline: {aceptadas} aceptadas, {rechazadas} rechazadas",
+            entidad_afectada="ActaInspeccion",
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("No se pudo registrar la sincronizacion en la bitacora")
+
+
 def sincronizar_actas(lista_datos, usuario):
     """Sincroniza un lote. Cada acta es independiente de las demas."""
     resultados = []
@@ -204,4 +223,5 @@ def sincronizar_actas(lista_datos, usuario):
                     estado=ERROR_TEMPORAL,
                 )
             )
+    _registrar_lote_en_bitacora(resultados, usuario)
     return resultados

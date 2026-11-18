@@ -14,6 +14,7 @@ from apps.fiscalizacion.models import (
     MaterialRegistrado,
 )
 from apps.fiscalizacion.tests.test_fiscalizacion import BaseFiscalizacionTestCase
+from apps.usuarios.models import BitacoraAuditoria
 
 
 class SincronizacionTests(BaseFiscalizacionTestCase):
@@ -105,6 +106,32 @@ class SincronizacionTests(BaseFiscalizacionTestCase):
         self.assertEqual(segunda["carga_fuego"], primera["carga_fuego"])
         self.assertEqual(ActaInspeccion.objects.filter(uuid_local=datos["uuid_local"]).count(), 1)
         self.assertEqual(MaterialRegistrado.objects.filter(acta_id=primera["acta_id"]).count(), 2)
+
+    def entradas_de_sync(self):
+        return BitacoraAuditoria.objects.filter(
+            usuario=self.inspector, accion__startswith="Sincronizar actas offline"
+        )
+
+    def test_la_sincronizacion_queda_en_la_bitacora_una_vez_por_lote(self):
+        self.enviar(self.acta(), self.acta())
+
+        entradas = self.entradas_de_sync()
+        self.assertEqual(entradas.count(), 1)
+        self.assertEqual(entradas[0].accion, "Sincronizar actas offline: 2 aceptadas, 0 rechazadas")
+        self.assertEqual(entradas[0].entidad_afectada, "ActaInspeccion")
+
+    def test_un_reintento_de_actas_ya_sincronizadas_no_agrega_otra_entrada(self):
+        datos = self.acta()
+        self.enviar(datos)
+        self.enviar(datos)
+        self.assertEqual(self.entradas_de_sync().count(), 1)
+
+    def test_las_rechazadas_tambien_se_cuentan_en_la_bitacora(self):
+        self.enviar(self.acta(), self.acta(predio_id=999999999))
+        self.assertEqual(
+            self.entradas_de_sync()[0].accion,
+            "Sincronizar actas offline: 1 aceptadas, 1 rechazadas",
+        )
 
     def test_lote_parcial_un_acta_mala_no_frena_a_las_buenas(self):
         buena = self.acta()
