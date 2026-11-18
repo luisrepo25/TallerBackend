@@ -2,6 +2,7 @@
 Django settings for config project.
 """
 
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -168,6 +169,13 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.common.exceptions.manejar_excepciones",
+}
+
+# JWT: el access dura poco; el refresh dura 14 dias para que un inspector sin senal varios
+# dias pueda sincronizar al volver sin tener que iniciar sesion de nuevo (MOVIL.md, G7).
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
 }
 
 SPECTACULAR_SETTINGS = {

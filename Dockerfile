@@ -20,6 +20,7 @@ RUN pip install --upgrade pip && pip install -r requirements-dev.txt
 
 COPY . .
 
-# Produccion (Railway): gunicorn escucha en $PORT. En desarrollo docker-compose.yml
-# sobreescribe este comando con runserver.
-CMD ["sh", "-c", "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]
+# Produccion (Cloud Run): gunicorn escucha en $PORT, con hilos para que una subida lenta
+# de foto no deje al servidor sin atender. En desarrollo docker-compose.yml sobreescribe
+# este comando con runserver.
+CMD ["sh", "-c", "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 1 --threads 4 --timeout 120"]
